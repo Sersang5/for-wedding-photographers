@@ -77,9 +77,9 @@ export function CrmDashboardPage() {
         <aside className="rounded-3xl border border-black/5 bg-brand-pine p-6 text-brand-cloud shadow-panel">
           <div className="mb-8">
             <p className="text-xs uppercase tracking-[0.25em] text-brand-sand/80">
-              CRM Vertical
+              Lenwed CRM
             </p>
-            <h1 className="mt-2 text-2xl font-semibold">WeddingFlow</h1>
+            <h1 className="mt-2 text-2xl font-semibold">Lenwed</h1>
           </div>
 
           <nav className="space-y-2">
@@ -112,11 +112,11 @@ export function CrmDashboardPage() {
               Bienvenido de vuelta
             </p>
             <h2 className="mt-2 text-3xl font-semibold text-brand-ink md:text-4xl">
-              Hola, Marta. Hoy toca cerrar otra gran historia.
+              Hola, Dani. Hoy toca cerrar otra gran historia.
             </h2>
             <p className="mt-3 max-w-3xl text-sm text-black/65 md:text-base">
-              Organiza sesiones, reuniones y entregas desde un único panel. El
-              calendario te ayudará a mantener cada fecha de boda bajo control.
+              Organiza sesiones, reuniones y entregas desde un unico panel. El
+              calendario te ayudara a mantener cada fecha de boda bajo control.
             </p>
           </header>
 
@@ -164,13 +164,13 @@ export function CrmDashboardPage() {
               <h3 className="text-lg font-semibold">Hoy en resumen</h3>
               <ul className="mt-4 space-y-3 text-sm text-black/70">
                 <li className="rounded-xl bg-brand-sand/45 p-3">
-                  10:00 - Reunión inicial con Laura & Dani
+                  10:00 - Reunion inicial con Laura & Jose
                 </li>
                 <li className="rounded-xl bg-brand-sand/45 p-3">
                   13:30 - Llamada seguimiento presupuesto
                 </li>
                 <li className="rounded-xl bg-brand-sand/45 p-3">
-                  17:00 - Entrega galería preboda
+                  17:00 - Entrega galeria preboda
                 </li>
               </ul>
 

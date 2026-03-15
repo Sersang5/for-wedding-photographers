@@ -13,8 +13,8 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: 'For Wedding Photographers CRM',
-  description: 'CRM dashboard for wedding photographers',
+  title: 'Lenwed CRM',
+  description: 'Lenwed CRM dashboard for wedding photographers',
 };
 
 export default function RootLayout({
