@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 const sidebarItems = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -51,6 +51,7 @@ type CoupleFormData = {
   weddingDate: string;
   location: string;
   pack: string;
+  state: string;
 };
 
 const initialCoupleFormData: CoupleFormData = {
@@ -66,6 +67,7 @@ const initialCoupleFormData: CoupleFormData = {
   weddingDate: '',
   location: '',
   pack: '0',
+  state: '0',
 };
 
 const API_BASE_URL =
@@ -74,6 +76,22 @@ const API_BASE_URL =
 function normalizeOptional(value: string): string | undefined {
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : undefined;
+}
+function formatDateForInput(dateValue?: string | null): string {
+  if (!dateValue) {
+    return '';
+  }
+
+  if (/^\d{4}-\d{2}-\d{2}/.test(dateValue)) {
+    return dateValue.slice(0, 10);
+  }
+
+  const parsedDate = new Date(dateValue);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return '';
+  }
+
+  return parsedDate.toISOString().slice(0, 10);
 }
 
 async function fetchApi<T>(url: string, init?: RequestInit): Promise<T> {
@@ -290,6 +308,7 @@ function DashboardView() {
 }
 
 type CoupleFormModalProps = {
+  mode: 'create' | 'edit';
   isOpen: boolean;
   isSaving: boolean;
   errorMessage: string | null;
@@ -297,9 +316,11 @@ type CoupleFormModalProps = {
   onClose: () => void;
   onChange: (field: keyof CoupleFormData, value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onDelete?: () => Promise<void>;
 };
 
 function CoupleFormModal({
+  mode,
   isOpen,
   isSaving,
   errorMessage,
@@ -307,9 +328,25 @@ function CoupleFormModal({
   onClose,
   onChange,
   onSubmit,
+  onDelete,
 }: CoupleFormModalProps) {
   if (!isOpen) {
     return null;
+  }
+
+  const isEditMode = mode === 'edit';
+
+  async function handleDeleteClick() {
+    if (!isEditMode || !onDelete || isSaving) {
+      return;
+    }
+
+    const confirmed = window.confirm('Estas seguro de eliminar la pareja?');
+    if (!confirmed) {
+      return;
+    }
+
+    await onDelete();
   }
 
   return (
@@ -318,11 +355,9 @@ function CoupleFormModal({
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-brand-clay">
-              Nueva pareja
+              {isEditMode ? 'Editar pareja' : 'Nueva pareja'}
             </p>
-            <h3 className="mt-2 text-2xl font-semibold text-brand-ink">
-              Nueva pareja
-            </h3>
+            
           </div>
           <button
             type="button"
@@ -374,7 +409,7 @@ function CoupleFormModal({
             </label>
 
             <div className="md:col-span-2 mt-1 rounded-xl bg-brand-sand/35 px-3 py-2 text-sm font-semibold text-brand-ink">
-              El
+              Él
             </div>
             <label className="space-y-1 text-sm">
               <span className="font-medium text-brand-ink">Nombre *</span>
@@ -424,7 +459,7 @@ function CoupleFormModal({
               />
             </label>
             <label className="space-y-1 text-sm">
-              <span className="font-medium text-brand-ink">Ubicacion</span>
+              <span className="font-medium text-brand-ink">Ubicación</span>
               <input
                 value={formData.location}
                 onChange={(event) => onChange('location', event.target.value)}
@@ -461,21 +496,53 @@ function CoupleFormModal({
             </p>
           ) : null}
 
-          <div className="flex items-center justify-end gap-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl border border-black/15 px-4 py-2 text-sm font-medium text-black/70 transition hover:bg-black/5"
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="rounded-xl bg-brand-pine px-4 py-2 text-sm font-medium text-brand-cloud transition hover:bg-brand-sage disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              {isSaving ? 'Guardando...' : 'Guardar pareja'}
-            </button>
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              {isEditMode ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleDeleteClick();
+                  }}
+                  disabled={isSaving}
+                  className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    className="h-4 w-4"
+                    aria-hidden="true"
+                  >
+                    <path d="M3 6h18" />
+                    <path d="M8 6V4h8v2" />
+                    <path d="M19 6l-1 14H6L5 6" />
+                    <path d="M10 11v6" />
+                    <path d="M14 11v6" />
+                  </svg>
+                  Eliminar
+                </button>
+              ) : null}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-xl border border-black/15 px-4 py-2 text-sm font-medium text-black/70 transition hover:bg-black/5"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="rounded-xl bg-brand-pine px-4 py-2 text-sm font-medium text-brand-cloud transition hover:bg-brand-sage disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isSaving ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
           </div>
         </form>
       </div>
@@ -488,16 +555,72 @@ type ParejasViewProps = {
   isLoading: boolean;
   errorMessage: string | null;
   onCreate: (formData: CoupleFormData) => Promise<void>;
+  onUpdate: (id: string, formData: CoupleFormData) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 };
 
-function ParejasView({ couples, isLoading, errorMessage, onCreate }: ParejasViewProps) {
+function ParejasView({
+  couples,
+  isLoading,
+  errorMessage,
+  onCreate,
+  onUpdate,
+  onDelete,
+}: ParejasViewProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [editingCoupleId, setEditingCoupleId] = useState<string | null>(null);
   const [formData, setFormData] = useState<CoupleFormData>(initialCoupleFormData);
 
-  function openModal() {
+  const filteredCouples = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+
+    if (!query) {
+      return couples;
+    }
+
+    return couples.filter((couple) => {
+      const searchableContent = [
+        `${couple.name1} ${couple.lastName1} ${couple.name2} ${couple.lastName2}`,
+        couple.location ?? '',
+        couple.state ?? '',
+        couple.pack ?? '',
+        couple.weddingDate ?? '',
+      ]
+        .join(' ')
+        .toLowerCase();
+
+      return searchableContent.includes(query);
+    });
+  }, [couples, searchTerm]);
+
+  function openCreateModal() {
+    setEditingCoupleId(null);
     setFormError(null);
+    setFormData(initialCoupleFormData);
+    setIsModalOpen(true);
+  }
+
+  function openEditModal(couple: Couple) {
+    setEditingCoupleId(couple.id);
+    setFormError(null);
+    setFormData({
+      name1: couple.name1 ?? '',
+      lastName1: couple.lastName1 ?? '',
+      name2: couple.name2 ?? '',
+      lastName2: couple.lastName2 ?? '',
+      email1: couple.email1 ?? '',
+      email2: couple.email2 ?? '',
+      phone1: couple.phone1 ?? '',
+      phone2: couple.phone2 ?? '',
+      language: couple.language ?? 'es',
+      weddingDate: formatDateForInput(couple.weddingDate),
+      location: couple.location ?? '',
+      pack: couple.pack ?? '0',
+      state: couple.state ?? '0',
+    });
     setIsModalOpen(true);
   }
 
@@ -507,6 +630,7 @@ function ParejasView({ couples, isLoading, errorMessage, onCreate }: ParejasView
     }
 
     setIsModalOpen(false);
+    setEditingCoupleId(null);
     setFormData(initialCoupleFormData);
     setFormError(null);
   }
@@ -517,13 +641,39 @@ function ParejasView({ couples, isLoading, errorMessage, onCreate }: ParejasView
     setFormError(null);
 
     try {
-      await onCreate(formData);
+      if (editingCoupleId) {
+        await onUpdate(editingCoupleId, formData);
+      } else {
+        await onCreate(formData);
+      }
       closeModal();
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
           : 'No se pudo guardar la pareja. Intentalo de nuevo.';
+      setFormError(message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!editingCoupleId) {
+      return;
+    }
+
+    setIsSaving(true);
+    setFormError(null);
+
+    try {
+      await onDelete(editingCoupleId);
+      closeModal();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'No se pudo eliminar la pareja. Intentalo de nuevo.';
       setFormError(message);
     } finally {
       setIsSaving(false);
@@ -549,17 +699,28 @@ function ParejasView({ couples, isLoading, errorMessage, onCreate }: ParejasView
       </header>
 
       <article className="rounded-3xl border border-black/5 bg-white/90 p-6 shadow-panel backdrop-blur-md">
-        <div className="mb-4 flex items-center justify-between gap-4">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-xl font-semibold text-brand-ink">
-            Todas las parejas ({couples.length})
+            Parejas ({filteredCouples.length})
           </h3>
           <button
             type="button"
-            onClick={openModal}
+            onClick={openCreateModal}
             className="rounded-xl bg-brand-pine px-4 py-2 text-sm font-medium text-brand-cloud transition hover:bg-brand-sage"
           >
             Nueva pareja
           </button>
+        </div>
+
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <input
+            type="search"
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Buscar por pareja, estado, pack o ubicacion"
+            className="w-full max-w-md rounded-xl border border-black/15 px-3 py-2 text-sm outline-none transition focus:border-brand-clay"
+          />
+          <span className="text-xs text-black/50">Total: {couples.length}</span>
         </div>
 
         {errorMessage ? (
@@ -573,47 +734,40 @@ function ParejasView({ couples, isLoading, errorMessage, onCreate }: ParejasView
             <thead>
               <tr className="border-b border-black/10 text-black/55">
                 <th className="px-3 py-3 font-medium">Pareja</th>
-                <th className="px-3 py-3 font-medium">Contacto</th>
-                <th className="px-3 py-3 font-medium">Fecha boda</th>
+                <th className="px-3 py-3 font-medium">Fecha</th>
                 <th className="px-3 py-3 font-medium">Estado</th>
                 <th className="px-3 py-3 font-medium">Pack</th>
-                <th className="px-3 py-3 font-medium">Idioma</th>
-                <th className="px-3 py-3 font-medium">Localizacion</th>
+                <th className="px-3 py-3 font-medium">Ubicacion</th>
               </tr>
             </thead>
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td className="px-3 py-6 text-center text-black/60" colSpan={7}>
+                  <td className="px-3 py-6 text-center text-black/60" colSpan={5}>
                     Cargando parejas...
                   </td>
                 </tr>
-              ) : couples.length === 0 ? (
+              ) : filteredCouples.length === 0 ? (
                 <tr>
-                  <td className="px-3 py-6 text-center text-black/60" colSpan={7}>
-                    Aun no hay parejas. Crea la primera desde "Nueva pareja".
+                  <td className="px-3 py-6 text-center text-black/60" colSpan={5}>
+                    No hay resultados para tu busqueda.
                   </td>
                 </tr>
               ) : (
-                couples.map((couple) => (
+                filteredCouples.map((couple) => (
                   <tr
                     key={couple.id}
                     className="border-b border-black/5 text-brand-ink hover:bg-brand-sand/25"
                   >
                     <td className="px-3 py-3">
-                      <div className="font-medium">
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(couple)}
+                        className="text-left font-medium underline decoration-brand-clay/40 underline-offset-4 transition hover:text-brand-clay"
+                      >
                         {couple.name1} {couple.lastName1} & {couple.name2}{' '}
                         {couple.lastName2}
-                      </div>
-                      <div className="text-xs text-black/45">{couple.id}</div>
-                    </td>
-                    <td className="px-3 py-3">
-                      <div className="text-xs text-black/55">
-                        Ella: {couple.email1} | {couple.phone1 ?? '-'}
-                      </div>
-                      <div className="text-xs text-black/45">
-                        El: {couple.email2 ?? '-'} | {couple.phone2 ?? '-'}
-                      </div>
+                      </button>
                     </td>
                     <td className="px-3 py-3">{getReadableDate(couple.weddingDate)}</td>
                     <td className="px-3 py-3">
@@ -622,7 +776,6 @@ function ParejasView({ couples, isLoading, errorMessage, onCreate }: ParejasView
                       </span>
                     </td>
                     <td className="px-3 py-3">{getPackLabel(couple.pack)}</td>
-                    <td className="px-3 py-3">{getLanguageLabel(couple.language)}</td>
                     <td className="px-3 py-3">{couple.location ?? '-'}</td>
                   </tr>
                 ))
@@ -633,6 +786,7 @@ function ParejasView({ couples, isLoading, errorMessage, onCreate }: ParejasView
       </article>
 
       <CoupleFormModal
+        mode={editingCoupleId ? 'edit' : 'create'}
         isOpen={isModalOpen}
         isSaving={isSaving}
         errorMessage={formError}
@@ -640,6 +794,7 @@ function ParejasView({ couples, isLoading, errorMessage, onCreate }: ParejasView
         onClose={closeModal}
         onChange={handleFormChange}
         onSubmit={handleSubmit}
+        onDelete={editingCoupleId ? handleDelete : undefined}
       />
     </section>
   );
@@ -712,6 +867,41 @@ export function CrmDashboardPage() {
     await loadCouples();
   }
 
+  async function handleUpdateCouple(id: string, formData: CoupleFormData) {
+    const payload = {
+      name1: formData.name1.trim(),
+      lastName1: normalizeOptional(formData.lastName1),
+      name2: formData.name2.trim(),
+      lastName2: normalizeOptional(formData.lastName2),
+      email1: normalizeOptional(formData.email1),
+      email2: normalizeOptional(formData.email2),
+      phone1: normalizeOptional(formData.phone1),
+      phone2: normalizeOptional(formData.phone2),
+      language: normalizeOptional(formData.language),
+      weddingDate: formData.weddingDate,
+      location: normalizeOptional(formData.location),
+      state: normalizeOptional(formData.state),
+      pack: normalizeOptional(formData.pack),
+    };
+
+    await fetchApi<Couple>(`${API_BASE_URL}/couples/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    await loadCouples();
+  }
+
+  async function handleDeleteCouple(id: string) {
+    await fetchApi<void>(`${API_BASE_URL}/couples/${id}`, {
+      method: 'DELETE',
+    });
+
+    await loadCouples();
+  }
   return (
     <main className="dashboard-fade-in h-screen overflow-hidden p-4 md:p-8">
       <div className="mx-auto grid h-full max-w-7xl gap-5 md:grid-cols-[260px_1fr]">
@@ -760,6 +950,8 @@ export function CrmDashboardPage() {
               isLoading={isCouplesLoading}
               errorMessage={couplesError}
               onCreate={handleCreateCouple}
+              onUpdate={handleUpdateCouple}
+              onDelete={handleDeleteCouple}
             />
           ) : null}
           {activeSection === 'presupuestos' ? (
@@ -777,6 +969,16 @@ export function CrmDashboardPage() {
     </main>
   );
 }
+
+
+
+
+
+
+
+
+
+
 
 
 
