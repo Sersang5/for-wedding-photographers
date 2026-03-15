@@ -1,0 +1,45 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: var(--font-body), sans-serif;
+  color: #1a1a1a;
+  background:
+    radial-gradient(circle at 10% 10%, rgba(139, 94, 60, 0.18), transparent 34%),
+    radial-gradient(circle at 85% 5%, rgba(78, 102, 80, 0.14), transparent 30%),
+    linear-gradient(135deg, #f8f5f1 0%, #f1ebe2 100%);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-heading), sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.dashboard-fade-in {
+  animation: dashboard-fade-in 0.55s ease-out both;
+}
+
+@keyframes dashboard-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

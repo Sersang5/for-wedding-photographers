@@ -6,7 +6,7 @@ import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
 import { GoogleAuthUser } from './interfaces/google-auth-user.interface';
 
-type AuthResponse = {
+export type AuthResponse = {
   accessToken: string;
   refreshToken: string;
   expiresIn: number;
@@ -53,6 +53,22 @@ export class AuthService {
       organizationId,
       email: googleUser.email,
     });
+  }
+
+  buildFrontendAuthRedirectUrl(authResponse: AuthResponse): string {
+    const callbackBaseUrl =
+      process.env.FRONTEND_AUTH_CALLBACK_URL ??
+      'http://localhost:3001/auth/callback';
+
+    const url = new URL(callbackBaseUrl);
+    url.searchParams.set('accessToken', authResponse.accessToken);
+    url.searchParams.set('refreshToken', authResponse.refreshToken);
+    url.searchParams.set('expiresIn', String(authResponse.expiresIn));
+    url.searchParams.set('userId', authResponse.user.id);
+    url.searchParams.set('email', authResponse.user.email);
+    url.searchParams.set('organizationId', authResponse.user.organizationId);
+
+    return url.toString();
   }
 
   refresh(dto: RefreshTokenDto): AuthResponse {

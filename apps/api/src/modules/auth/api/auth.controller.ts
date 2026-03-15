@@ -1,10 +1,14 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { AuthService } from '../application/auth.service';
 import { LoginDto } from '../application/dto/login.dto';
 import { RefreshTokenDto } from '../application/dto/refresh-token.dto';
 import { RegisterDto } from '../application/dto/register.dto';
 import { GoogleAuthUser } from '../application/interfaces/google-auth-user.interface';
 import { GoogleAuthGuard } from '../infrastructure/guards/google-auth.guard';
+
+type RedirectResponse = {
+  redirect: (url: string) => void;
+};
 
 @Controller('auth')
 export class AuthController {
@@ -35,7 +39,12 @@ export class AuthController {
 
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
-  googleCallback(@Req() req: { user: GoogleAuthUser }) {
-    return this.authService.loginWithGoogle(req.user);
+  googleCallback(
+    @Req() req: { user: GoogleAuthUser },
+    @Res() res: RedirectResponse,
+  ) {
+    const authResponse = this.authService.loginWithGoogle(req.user);
+    const redirectUrl = this.authService.buildFrontendAuthRedirectUrl(authResponse);
+    res.redirect(redirectUrl);
   }
 }
