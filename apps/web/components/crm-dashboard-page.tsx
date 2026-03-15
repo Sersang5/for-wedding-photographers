@@ -5,7 +5,6 @@ import { useState } from 'react';
 const sidebarItems = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'parejas', label: 'Parejas' },
-  { id: 'leads', label: 'Leads' },
   { id: 'presupuestos', label: 'Presupuestos' },
   { id: 'actividades', label: 'Actividades' },
   { id: 'automatizaciones', label: 'Automatizaciones' },
@@ -356,7 +355,6 @@ export function CrmDashboardPage() {
         <div className="lenwed-scroll-area h-full overflow-y-auto">
           {activeSection === 'dashboard' ? <DashboardView /> : null}
           {activeSection === 'parejas' ? <ParejasView /> : null}
-          {activeSection === 'leads' ? <PlaceholderView title="Leads" /> : null}
           {activeSection === 'presupuestos' ? (
             <PlaceholderView title="Presupuestos" />
           ) : null}
