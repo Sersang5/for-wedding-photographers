@@ -2,11 +2,11 @@
 
 export class LoginDto {
   @IsEmail()
-  email: string;
+  email!: string;
 
   @IsString()
-  password: string;
+  password!: string;
 
   @IsString()
-  organizationId: string;
+  organizationId!: string;
 }

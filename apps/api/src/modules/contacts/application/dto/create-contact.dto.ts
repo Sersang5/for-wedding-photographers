@@ -10,13 +10,13 @@ import { LeadStatus } from '../../domain/entities/contact.entity';
 
 export class CreateContactDto {
   @IsString()
-  firstName: string;
+  firstName!: string;
 
   @IsString()
-  lastName: string;
+  lastName!: string;
 
   @IsEmail()
-  email: string;
+  email!: string;
 
   @IsString()
   @IsOptional()

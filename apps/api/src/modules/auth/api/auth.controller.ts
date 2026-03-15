@@ -1,8 +1,10 @@
-﻿import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthService } from '../application/auth.service';
 import { LoginDto } from '../application/dto/login.dto';
 import { RefreshTokenDto } from '../application/dto/refresh-token.dto';
 import { RegisterDto } from '../application/dto/register.dto';
+import { GoogleAuthUser } from '../application/interfaces/google-auth-user.interface';
+import { GoogleAuthGuard } from '../infrastructure/guards/google-auth.guard';
 
 @Controller('auth')
 export class AuthController {
@@ -21,5 +23,19 @@ export class AuthController {
   @Post('refresh')
   refresh(@Body() dto: RefreshTokenDto) {
     return this.authService.refresh(dto);
+  }
+
+  @Get('google')
+  @UseGuards(GoogleAuthGuard)
+  googleLogin() {
+    return {
+      success: true,
+    };
+  }
+
+  @Get('google/callback')
+  @UseGuards(GoogleAuthGuard)
+  googleCallback(@Req() req: { user: GoogleAuthUser }) {
+    return this.authService.loginWithGoogle(req.user);
   }
 }

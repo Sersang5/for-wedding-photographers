@@ -3,11 +3,11 @@
 export class CreateOrganizationDto {
   @IsString()
   @IsNotEmpty()
-  name: string;
+  name!: string;
 
   @IsString()
   @Matches(/^[a-z0-9-]+$/)
-  slug: string;
+  slug!: string;
 
   @IsString()
   @IsOptional()

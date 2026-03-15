@@ -3,13 +3,13 @@ import { UserRole, UserStatus } from '../../domain/entities/user.entity';
 
 export class CreateUserDto {
   @IsEmail()
-  email: string;
+  email!: string;
 
   @IsString()
-  firstName: string;
+  firstName!: string;
 
   @IsString()
-  lastName: string;
+  lastName!: string;
 
   @IsEnum(UserRole)
   @IsOptional()

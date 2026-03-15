@@ -9,10 +9,10 @@ import { DealStage, DealStatus } from '../../domain/entities/deal.entity';
 
 export class CreateDealDto {
   @IsString()
-  contactId: string;
+  contactId!: string;
 
   @IsString()
-  title: string;
+  title!: string;
 
   @IsEnum(DealStage)
   @IsOptional()
@@ -23,7 +23,7 @@ export class CreateDealDto {
   status?: DealStatus;
 
   @IsNumber()
-  value: number;
+  value!: number;
 
   @IsString()
   @IsOptional()

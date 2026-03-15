@@ -10,7 +10,7 @@ import { ActivityType } from '../../domain/entities/activity.entity';
 
 export class CreateActivityDto {
   @IsString()
-  userId: string;
+  userId!: string;
 
   @IsString()
   @IsOptional()
@@ -21,10 +21,10 @@ export class CreateActivityDto {
   dealId?: string;
 
   @IsEnum(ActivityType)
-  type: ActivityType;
+  type!: ActivityType;
 
   @IsString()
-  title: string;
+  title!: string;
 
   @IsString()
   @IsOptional()

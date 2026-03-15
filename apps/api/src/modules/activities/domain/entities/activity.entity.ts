@@ -6,17 +6,17 @@
 }
 
 export class ActivityEntity {
-  id: string;
-  organizationId: string;
-  userId: string;
+  id!: string;
+  organizationId!: string;
+  userId!: string;
   contactId?: string;
   dealId?: string;
-  type: ActivityType;
-  title: string;
+  type!: ActivityType;
+  title!: string;
   description?: string;
   dueDate?: Date;
-  completed: boolean;
+  completed!: boolean;
   metadata?: Record<string, unknown>;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt!: Date;
+  updatedAt!: Date;
 }

@@ -11,13 +11,13 @@ export enum UserStatus {
 }
 
 export class UserEntity {
-  id: string;
-  organizationId: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  role: UserRole;
-  status: UserStatus;
-  createdAt: Date;
-  updatedAt: Date;
+  id!: string;
+  organizationId!: string;
+  email!: string;
+  firstName!: string;
+  lastName!: string;
+  role!: UserRole;
+  status!: UserStatus;
+  createdAt!: Date;
+  updatedAt!: Date;
 }

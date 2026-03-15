@@ -6,17 +6,17 @@
 }
 
 export class ContactEntity {
-  id: string;
-  organizationId: string;
-  firstName: string;
-  lastName: string;
-  email: string;
+  id!: string;
+  organizationId!: string;
+  firstName!: string;
+  lastName!: string;
+  email!: string;
   phone?: string;
   source?: string;
-  tags: string[];
+  tags!: string[];
   weddingDate?: Date;
-  leadStatus: LeadStatus;
+  leadStatus!: LeadStatus;
   ownerUserId?: string;
-  createdAt: Date;
-  updatedAt: Date;
+  createdAt!: Date;
+  updatedAt!: Date;
 }

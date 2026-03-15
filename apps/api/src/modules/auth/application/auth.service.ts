@@ -1,9 +1,10 @@
-﻿import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { createHash, randomUUID } from 'node:crypto';
 import { AuthSessionEntity } from '../domain/entities/auth-session.entity';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { RegisterDto } from './dto/register.dto';
+import { GoogleAuthUser } from './interfaces/google-auth-user.interface';
 
 type AuthResponse = {
   accessToken: string;
@@ -40,6 +41,17 @@ export class AuthService {
       userId: this.stableId(dto.email),
       organizationId: dto.organizationId,
       email: dto.email,
+    });
+  }
+
+  loginWithGoogle(googleUser: GoogleAuthUser): AuthResponse {
+    const organizationId =
+      googleUser.organizationId ?? this.defaultOrganizationId(googleUser.email);
+
+    return this.issueSession({
+      userId: this.stableId(`google:${googleUser.googleId}`),
+      organizationId,
+      email: googleUser.email,
     });
   }
 
@@ -95,6 +107,11 @@ export class AuthService {
         organizationId: input.organizationId,
       },
     };
+  }
+
+  private defaultOrganizationId(email: string): string {
+    const domain = email.split('@')[1] ?? 'default-org';
+    return this.stableId(`org:${domain}`);
   }
 
   private stableId(seed: string): string {
