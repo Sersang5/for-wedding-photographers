@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Organization {
+  id           BigInt        @id @default(autoincrement()) @db.BigInt
+  name         String
+  slug         String        @unique
+  industry     String
+  timezone     String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  users        User[]
+  contacts     Contact[]
+  deals        Deal[]
+  activities   Activity[]
+  authSessions AuthSession[]
+}
+
+model User {
+  id             BigInt        @id @default(autoincrement()) @db.BigInt
+  organizationId BigInt        @db.BigInt
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  firstName      String
+  lastName       String
+  passwordHash   String?
+  role           String
+  status         String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  contactsOwned  Contact[]     @relation("ContactOwner")
+  activities     Activity[]
+  sessions       AuthSession[] @relation("SessionUser")
+
+  @@index([organizationId])
+  @@unique([organizationId, email])
+}
+
+model Contact {
+  id             BigInt        @id @default(autoincrement()) @db.BigInt
+  organizationId BigInt        @db.BigInt
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  firstName      String
+  lastName       String
+  email          String
+  phone          String?
+  source         String?
+  tags           String[]
+  weddingDate    DateTime?
+  leadStatus     String
+  ownerUserId    BigInt?       @db.BigInt
+  ownerUser      User?         @relation("ContactOwner", fields: [ownerUserId], references: [id], onDelete: SetNull)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  deals          Deal[]
+  activities     Activity[]
+
+  @@index([organizationId])
+}
+
+model Deal {
+  id                BigInt        @id @default(autoincrement()) @db.BigInt
+  organizationId    BigInt        @db.BigInt
+  organization      Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contactId         BigInt        @db.BigInt
+  contact           Contact       @relation(fields: [contactId], references: [id], onDelete: Restrict)
+  title             String
+  stage             String
+  status            String
+  value             Float
+  currency          String
+  expectedCloseDate DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  activities        Activity[]
+
+  @@index([organizationId])
+}
+
+model Activity {
+  id             BigInt        @id @default(autoincrement()) @db.BigInt
+  organizationId BigInt        @db.BigInt
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  userId         BigInt        @db.BigInt
+  user           User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  contactId      BigInt?       @db.BigInt
+  contact        Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  dealId         BigInt?       @db.BigInt
+  deal           Deal?         @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  type           String
+  title          String
+  description    String?
+  dueDate        DateTime?
+  completed      Boolean       @default(false)
+  metadata       Json?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([organizationId])
+}
+
+model AuthSession {
+  id             BigInt       @id @default(autoincrement()) @db.BigInt
+  userId         BigInt       @db.BigInt
+  user           User         @relation("SessionUser", fields: [userId], references: [id], onDelete: Cascade)
+  organizationId BigInt       @db.BigInt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  refreshToken   String       @unique
+  expiresAt      DateTime
+  createdAt      DateTime     @default(now())
+
+  @@index([organizationId])
+}
+
+model Couple {
+  id          BigInt    @id @default(autoincrement()) @db.BigInt
+  name1       String    @map("name_1")
+  lastName1   String    @map("last_name_1")
+  name2       String    @map("name_2")
+  lastName2   String    @map("last_name_2")
+  email1      String    @map("email_1")
+  email2      String?   @map("email_2")
+  phone1      String?   @map("phone_1")
+  phone2      String?   @map("phone_2")
+  language    String?
+  weddingDate DateTime? @map("wedding_date")
+  location    String?
+  state       String?
+  pack        String?
+
+  @@map("couples")
+}

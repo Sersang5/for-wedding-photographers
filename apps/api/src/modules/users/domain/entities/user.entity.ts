@@ -1,4 +1,4 @@
-﻿export enum UserRole {
+export enum UserRole {
   OWNER = 'owner',
   ADMIN = 'admin',
   MEMBER = 'member',
@@ -11,13 +11,13 @@ export enum UserStatus {
 }
 
 export class UserEntity {
-  id!: string;
-  organizationId!: string;
+  id!: bigint;
+  organizationId!: bigint;
   email!: string;
   firstName!: string;
   lastName!: string;
-  role!: UserRole;
-  status!: UserStatus;
+  role!: UserRole | string;
+  status!: UserStatus | string;
   createdAt!: Date;
   updatedAt!: Date;
 }

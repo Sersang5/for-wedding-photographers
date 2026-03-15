@@ -1,4 +1,4 @@
-﻿import {
+import {
   BadRequestException,
   CanActivate,
   ExecutionContext,
@@ -20,6 +20,12 @@ export class TenantGuard implements CanActivate {
 
     if (!tenantId) {
       throw new BadRequestException('Missing x-organization-id header');
+    }
+
+    if (!/^\d+$/.test(tenantId) || BigInt(tenantId) < 1n) {
+      throw new BadRequestException(
+        'x-organization-id must be a positive integer',
+      );
     }
 
     return true;

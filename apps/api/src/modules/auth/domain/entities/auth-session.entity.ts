@@ -1,7 +1,7 @@
-﻿export class AuthSessionEntity {
-  id!: string;
-  userId!: string;
-  organizationId!: string;
+export class AuthSessionEntity {
+  id!: bigint;
+  userId!: bigint;
+  organizationId!: bigint;
   refreshToken!: string;
   expiresAt!: Date;
   createdAt!: Date;

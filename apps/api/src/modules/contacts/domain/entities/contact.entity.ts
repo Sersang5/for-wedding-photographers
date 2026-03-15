@@ -1,4 +1,4 @@
-﻿export enum LeadStatus {
+export enum LeadStatus {
   NEW = 'new',
   QUALIFIED = 'qualified',
   WON = 'won',
@@ -6,17 +6,17 @@
 }
 
 export class ContactEntity {
-  id!: string;
-  organizationId!: string;
+  id!: bigint;
+  organizationId!: bigint;
   firstName!: string;
   lastName!: string;
   email!: string;
-  phone?: string;
-  source?: string;
+  phone?: string | null;
+  source?: string | null;
   tags!: string[];
-  weddingDate?: Date;
-  leadStatus!: LeadStatus;
-  ownerUserId?: string;
+  weddingDate?: Date | null;
+  leadStatus!: LeadStatus | string;
+  ownerUserId?: bigint | null;
   createdAt!: Date;
   updatedAt!: Date;
 }

@@ -1,21 +1,32 @@
-﻿import { Injectable, NotFoundException } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { toBigIntId } from '../../../common/utils/id.util';
+import { PrismaService } from '../../../infrastructure/prisma/prisma.service';
 import { UserEntity, UserRole, UserStatus } from '../domain/entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UsersService {
-  private readonly users: UserEntity[] = [];
+  constructor(private readonly prisma: PrismaService) {}
 
-  findAll(organizationId: string): UserEntity[] {
-    return this.users.filter((user) => user.organizationId === organizationId);
+  async findAll(organizationId: string): Promise<UserEntity[]> {
+    return this.prisma.user.findMany({
+      where: {
+        organizationId: toBigIntId(organizationId, 'organization id'),
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
   }
 
-  findOne(organizationId: string, id: string): UserEntity {
-    const user = this.users.find(
-      (item) => item.organizationId === organizationId && item.id === id,
-    );
+  async findOne(organizationId: string, id: string): Promise<UserEntity> {
+    const user = await this.prisma.user.findFirst({
+      where: {
+        id: toBigIntId(id, 'user id'),
+        organizationId: toBigIntId(organizationId, 'organization id'),
+      },
+    });
 
     if (!user) {
       throw new NotFoundException('User not found');
@@ -24,47 +35,52 @@ export class UsersService {
     return user;
   }
 
-  create(organizationId: string, dto: CreateUserDto): UserEntity {
-    const now = new Date();
-    const user: UserEntity = {
-      id: randomUUID(),
-      organizationId,
-      email: dto.email,
-      firstName: dto.firstName,
-      lastName: dto.lastName,
-      role: dto.role ?? UserRole.MEMBER,
-      status: dto.status ?? UserStatus.INVITED,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    this.users.push(user);
-    return user;
+  async create(
+    organizationId: string,
+    dto: CreateUserDto,
+  ): Promise<UserEntity> {
+    return this.prisma.user.create({
+      data: {
+        organizationId: toBigIntId(organizationId, 'organization id'),
+        email: dto.email,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        role: dto.role ?? UserRole.MEMBER,
+        status: dto.status ?? UserStatus.INVITED,
+      },
+    });
   }
 
-  update(
+  async update(
     organizationId: string,
     id: string,
     dto: UpdateUserDto,
-  ): UserEntity {
-    const user = this.findOne(organizationId, id);
+  ): Promise<UserEntity> {
+    const userId = toBigIntId(id, 'user id');
+    await this.findOne(organizationId, id);
 
-    Object.assign(user, dto, {
-      updatedAt: new Date(),
+    return this.prisma.user.update({
+      where: {
+        id: userId,
+      },
+      data: {
+        email: dto.email,
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        role: dto.role,
+        status: dto.status,
+      },
     });
-
-    return user;
   }
 
-  remove(organizationId: string, id: string): void {
-    const index = this.users.findIndex(
-      (item) => item.organizationId === organizationId && item.id === id,
-    );
+  async remove(organizationId: string, id: string): Promise<void> {
+    const userId = toBigIntId(id, 'user id');
+    await this.findOne(organizationId, id);
 
-    if (index < 0) {
-      throw new NotFoundException('User not found');
-    }
-
-    this.users.splice(index, 1);
+    await this.prisma.user.delete({
+      where: {
+        id: userId,
+      },
+    });
   }
 }

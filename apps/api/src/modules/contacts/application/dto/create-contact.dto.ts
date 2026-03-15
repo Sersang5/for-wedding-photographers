@@ -1,8 +1,9 @@
-﻿import {
+import {
   IsArray,
   IsDateString,
   IsEmail,
   IsEnum,
+  IsNumberString,
   IsOptional,
   IsString,
 } from 'class-validator';
@@ -39,7 +40,7 @@ export class CreateContactDto {
   @IsOptional()
   leadStatus?: LeadStatus;
 
-  @IsString()
+  @IsNumberString()
   @IsOptional()
   ownerUserId?: string;
 }

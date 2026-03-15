@@ -1,23 +1,33 @@
-﻿import { Injectable, NotFoundException } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
+import { toBigIntId, toOptionalBigIntId } from '../../../common/utils/id.util';
+import { PrismaService } from '../../../infrastructure/prisma/prisma.service';
 import { ActivityEntity } from '../domain/entities/activity.entity';
 import { CreateActivityDto } from './dto/create-activity.dto';
 import { UpdateActivityDto } from './dto/update-activity.dto';
 
 @Injectable()
 export class ActivitiesService {
-  private readonly activities: ActivityEntity[] = [];
+  constructor(private readonly prisma: PrismaService) {}
 
-  findAll(organizationId: string): ActivityEntity[] {
-    return this.activities.filter(
-      (activity) => activity.organizationId === organizationId,
-    );
+  async findAll(organizationId: string): Promise<ActivityEntity[]> {
+    return this.prisma.activity.findMany({
+      where: {
+        organizationId: toBigIntId(organizationId, 'organization id'),
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
   }
 
-  findOne(organizationId: string, id: string): ActivityEntity {
-    const activity = this.activities.find(
-      (item) => item.organizationId === organizationId && item.id === id,
-    );
+  async findOne(organizationId: string, id: string): Promise<ActivityEntity> {
+    const activity = await this.prisma.activity.findFirst({
+      where: {
+        id: toBigIntId(id, 'activity id'),
+        organizationId: toBigIntId(organizationId, 'organization id'),
+      },
+    });
 
     if (!activity) {
       throw new NotFoundException('Activity not found');
@@ -26,52 +36,60 @@ export class ActivitiesService {
     return activity;
   }
 
-  create(organizationId: string, dto: CreateActivityDto): ActivityEntity {
-    const now = new Date();
-    const activity: ActivityEntity = {
-      id: randomUUID(),
-      organizationId,
-      userId: dto.userId,
-      contactId: dto.contactId,
-      dealId: dto.dealId,
-      type: dto.type,
-      title: dto.title,
-      description: dto.description,
-      dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
-      completed: dto.completed ?? false,
-      metadata: dto.metadata,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    this.activities.push(activity);
-    return activity;
+  async create(
+    organizationId: string,
+    dto: CreateActivityDto,
+  ): Promise<ActivityEntity> {
+    return this.prisma.activity.create({
+      data: {
+        organizationId: toBigIntId(organizationId, 'organization id'),
+        userId: toBigIntId(dto.userId, 'user id'),
+        contactId: toOptionalBigIntId(dto.contactId, 'contact id'),
+        dealId: toOptionalBigIntId(dto.dealId, 'deal id'),
+        type: dto.type,
+        title: dto.title,
+        description: dto.description,
+        dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+        completed: dto.completed ?? false,
+        metadata: dto.metadata as Prisma.InputJsonValue | undefined,
+      },
+    });
   }
 
-  update(
+  async update(
     organizationId: string,
     id: string,
     dto: UpdateActivityDto,
-  ): ActivityEntity {
-    const activity = this.findOne(organizationId, id);
+  ): Promise<ActivityEntity> {
+    const activityId = toBigIntId(id, 'activity id');
+    await this.findOne(organizationId, id);
 
-    Object.assign(activity, dto, {
-      dueDate: dto.dueDate ? new Date(dto.dueDate) : activity.dueDate,
-      updatedAt: new Date(),
+    return this.prisma.activity.update({
+      where: {
+        id: activityId,
+      },
+      data: {
+        userId: toOptionalBigIntId(dto.userId, 'user id') ?? undefined,
+        contactId: toOptionalBigIntId(dto.contactId, 'contact id'),
+        dealId: toOptionalBigIntId(dto.dealId, 'deal id'),
+        type: dto.type,
+        title: dto.title,
+        description: dto.description,
+        dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
+        completed: dto.completed,
+        metadata: dto.metadata as Prisma.InputJsonValue | undefined,
+      },
     });
-
-    return activity;
   }
 
-  remove(organizationId: string, id: string): void {
-    const index = this.activities.findIndex(
-      (item) => item.organizationId === organizationId && item.id === id,
-    );
+  async remove(organizationId: string, id: string): Promise<void> {
+    const activityId = toBigIntId(id, 'activity id');
+    await this.findOne(organizationId, id);
 
-    if (index < 0) {
-      throw new NotFoundException('Activity not found');
-    }
-
-    this.activities.splice(index, 1);
+    await this.prisma.activity.delete({
+      where: {
+        id: activityId,
+      },
+    });
   }
 }

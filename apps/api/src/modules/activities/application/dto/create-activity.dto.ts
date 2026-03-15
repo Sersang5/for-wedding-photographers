@@ -1,7 +1,8 @@
-﻿import {
+import {
   IsBoolean,
   IsDateString,
   IsEnum,
+  IsNumberString,
   IsObject,
   IsOptional,
   IsString,
@@ -9,14 +10,14 @@
 import { ActivityType } from '../../domain/entities/activity.entity';
 
 export class CreateActivityDto {
-  @IsString()
+  @IsNumberString()
   userId!: string;
 
-  @IsString()
+  @IsNumberString()
   @IsOptional()
   contactId?: string;
 
-  @IsString()
+  @IsNumberString()
   @IsOptional()
   dealId?: string;
 

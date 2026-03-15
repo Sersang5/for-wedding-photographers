@@ -1,14 +1,15 @@
-﻿import {
+import {
   IsDateString,
   IsEnum,
   IsNumber,
+  IsNumberString,
   IsOptional,
   IsString,
 } from 'class-validator';
 import { DealStage, DealStatus } from '../../domain/entities/deal.entity';
 
 export class CreateDealDto {
-  @IsString()
+  @IsNumberString()
   contactId!: string;
 
   @IsString()

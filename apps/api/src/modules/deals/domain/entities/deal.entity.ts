@@ -1,4 +1,4 @@
-﻿export enum DealStage {
+export enum DealStage {
   LEAD = 'lead',
   PROPOSAL = 'proposal',
   NEGOTIATION = 'negotiation',
@@ -12,15 +12,15 @@ export enum DealStatus {
 }
 
 export class DealEntity {
-  id!: string;
-  organizationId!: string;
-  contactId!: string;
+  id!: bigint;
+  organizationId!: bigint;
+  contactId!: bigint;
   title!: string;
-  stage!: DealStage;
-  status!: DealStatus;
+  stage!: DealStage | string;
+  status!: DealStatus | string;
   value!: number;
   currency!: string;
-  expectedCloseDate?: Date;
+  expectedCloseDate?: Date | null;
   createdAt!: Date;
   updatedAt!: Date;
 }

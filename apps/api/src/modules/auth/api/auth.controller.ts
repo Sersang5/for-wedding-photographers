@@ -39,11 +39,11 @@ export class AuthController {
 
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)
-  googleCallback(
+  async googleCallback(
     @Req() req: { user: GoogleAuthUser },
     @Res() res: RedirectResponse,
   ) {
-    const authResponse = this.authService.loginWithGoogle(req.user);
+    const authResponse = await this.authService.loginWithGoogle(req.user);
     const redirectUrl = this.authService.buildFrontendAuthRedirectUrl(authResponse);
     res.redirect(redirectUrl);
   }

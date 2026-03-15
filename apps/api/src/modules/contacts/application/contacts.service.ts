@@ -1,23 +1,32 @@
-﻿import { Injectable, NotFoundException } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { toBigIntId, toOptionalBigIntId } from '../../../common/utils/id.util';
+import { PrismaService } from '../../../infrastructure/prisma/prisma.service';
 import { ContactEntity, LeadStatus } from '../domain/entities/contact.entity';
 import { CreateContactDto } from './dto/create-contact.dto';
 import { UpdateContactDto } from './dto/update-contact.dto';
 
 @Injectable()
 export class ContactsService {
-  private readonly contacts: ContactEntity[] = [];
+  constructor(private readonly prisma: PrismaService) {}
 
-  findAll(organizationId: string): ContactEntity[] {
-    return this.contacts.filter(
-      (contact) => contact.organizationId === organizationId,
-    );
+  async findAll(organizationId: string): Promise<ContactEntity[]> {
+    return this.prisma.contact.findMany({
+      where: {
+        organizationId: toBigIntId(organizationId, 'organization id'),
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
   }
 
-  findOne(organizationId: string, id: string): ContactEntity {
-    const contact = this.contacts.find(
-      (item) => item.organizationId === organizationId && item.id === id,
-    );
+  async findOne(organizationId: string, id: string): Promise<ContactEntity> {
+    const contact = await this.prisma.contact.findFirst({
+      where: {
+        id: toBigIntId(id, 'contact id'),
+        organizationId: toBigIntId(organizationId, 'organization id'),
+      },
+    });
 
     if (!contact) {
       throw new NotFoundException('Contact not found');
@@ -26,54 +35,60 @@ export class ContactsService {
     return contact;
   }
 
-  create(organizationId: string, dto: CreateContactDto): ContactEntity {
-    const now = new Date();
-    const contact: ContactEntity = {
-      id: randomUUID(),
-      organizationId,
-      firstName: dto.firstName,
-      lastName: dto.lastName,
-      email: dto.email,
-      phone: dto.phone,
-      source: dto.source,
-      tags: dto.tags ?? [],
-      weddingDate: dto.weddingDate ? new Date(dto.weddingDate) : undefined,
-      leadStatus: dto.leadStatus ?? LeadStatus.NEW,
-      ownerUserId: dto.ownerUserId,
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    this.contacts.push(contact);
-    return contact;
+  async create(
+    organizationId: string,
+    dto: CreateContactDto,
+  ): Promise<ContactEntity> {
+    return this.prisma.contact.create({
+      data: {
+        organizationId: toBigIntId(organizationId, 'organization id'),
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        email: dto.email,
+        phone: dto.phone,
+        source: dto.source,
+        tags: dto.tags ?? [],
+        weddingDate: dto.weddingDate ? new Date(dto.weddingDate) : undefined,
+        leadStatus: dto.leadStatus ?? LeadStatus.NEW,
+        ownerUserId: toOptionalBigIntId(dto.ownerUserId, 'owner user id'),
+      },
+    });
   }
 
-  update(
+  async update(
     organizationId: string,
     id: string,
     dto: UpdateContactDto,
-  ): ContactEntity {
-    const contact = this.findOne(organizationId, id);
+  ): Promise<ContactEntity> {
+    const contactId = toBigIntId(id, 'contact id');
+    await this.findOne(organizationId, id);
 
-    Object.assign(contact, dto, {
-      weddingDate: dto.weddingDate
-        ? new Date(dto.weddingDate)
-        : contact.weddingDate,
-      updatedAt: new Date(),
+    return this.prisma.contact.update({
+      where: {
+        id: contactId,
+      },
+      data: {
+        firstName: dto.firstName,
+        lastName: dto.lastName,
+        email: dto.email,
+        phone: dto.phone,
+        source: dto.source,
+        tags: dto.tags,
+        weddingDate: dto.weddingDate ? new Date(dto.weddingDate) : undefined,
+        leadStatus: dto.leadStatus,
+        ownerUserId: toOptionalBigIntId(dto.ownerUserId, 'owner user id'),
+      },
     });
-
-    return contact;
   }
 
-  remove(organizationId: string, id: string): void {
-    const index = this.contacts.findIndex(
-      (item) => item.organizationId === organizationId && item.id === id,
-    );
+  async remove(organizationId: string, id: string): Promise<void> {
+    const contactId = toBigIntId(id, 'contact id');
+    await this.findOne(organizationId, id);
 
-    if (index < 0) {
-      throw new NotFoundException('Contact not found');
-    }
-
-    this.contacts.splice(index, 1);
+    await this.prisma.contact.delete({
+      where: {
+        id: contactId,
+      },
+    });
   }
 }

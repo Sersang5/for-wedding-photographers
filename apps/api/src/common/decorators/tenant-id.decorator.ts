@@ -1,4 +1,4 @@
-﻿import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import { createParamDecorator, ExecutionContext } from '@nestjs/common';
 
 export const TenantId = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): string => {
@@ -10,9 +10,9 @@ export const TenantId = createParamDecorator(
     const tenantHeader = request.headers['x-organization-id'];
 
     if (Array.isArray(tenantHeader)) {
-      return tenantHeader[0] ?? '';
+      return (tenantHeader[0] ?? '').trim();
     }
 
-    return tenantHeader ?? '';
+    return (tenantHeader ?? '').trim();
   },
 );

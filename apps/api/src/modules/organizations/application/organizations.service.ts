@@ -1,19 +1,28 @@
-﻿import { Injectable, NotFoundException } from '@nestjs/common';
-import { randomUUID } from 'node:crypto';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { toBigIntId } from '../../../common/utils/id.util';
+import { PrismaService } from '../../../infrastructure/prisma/prisma.service';
 import { OrganizationEntity } from '../domain/entities/organization.entity';
 import { CreateOrganizationDto } from './dto/create-organization.dto';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 
 @Injectable()
 export class OrganizationsService {
-  private readonly organizations: OrganizationEntity[] = [];
+  constructor(private readonly prisma: PrismaService) {}
 
-  findAll(): OrganizationEntity[] {
-    return this.organizations;
+  async findAll(): Promise<OrganizationEntity[]> {
+    return this.prisma.organization.findMany({
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
   }
 
-  findOne(id: string): OrganizationEntity {
-    const organization = this.organizations.find((item) => item.id === id);
+  async findOne(id: string): Promise<OrganizationEntity> {
+    const organization = await this.prisma.organization.findUnique({
+      where: {
+        id: toBigIntId(id, 'organization id'),
+      },
+    });
 
     if (!organization) {
       throw new NotFoundException('Organization not found');
@@ -22,39 +31,40 @@ export class OrganizationsService {
     return organization;
   }
 
-  create(dto: CreateOrganizationDto): OrganizationEntity {
-    const now = new Date();
-    const organization: OrganizationEntity = {
-      id: randomUUID(),
-      name: dto.name,
-      slug: dto.slug,
-      industry: dto.industry ?? 'wedding-photography',
-      timezone: dto.timezone ?? 'UTC',
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    this.organizations.push(organization);
-    return organization;
-  }
-
-  update(id: string, dto: UpdateOrganizationDto): OrganizationEntity {
-    const organization = this.findOne(id);
-
-    Object.assign(organization, dto, {
-      updatedAt: new Date(),
+  async create(dto: CreateOrganizationDto): Promise<OrganizationEntity> {
+    return this.prisma.organization.create({
+      data: {
+        name: dto.name,
+        slug: dto.slug,
+        industry: dto.industry ?? 'wedding-photography',
+        timezone: dto.timezone ?? 'UTC',
+      },
     });
-
-    return organization;
   }
 
-  remove(id: string): void {
-    const index = this.organizations.findIndex((item) => item.id === id);
+  async update(
+    id: string,
+    dto: UpdateOrganizationDto,
+  ): Promise<OrganizationEntity> {
+    const organizationId = toBigIntId(id, 'organization id');
+    await this.findOne(id);
 
-    if (index < 0) {
-      throw new NotFoundException('Organization not found');
-    }
+    return this.prisma.organization.update({
+      where: {
+        id: organizationId,
+      },
+      data: dto,
+    });
+  }
 
-    this.organizations.splice(index, 1);
+  async remove(id: string): Promise<void> {
+    const organizationId = toBigIntId(id, 'organization id');
+    await this.findOne(id);
+
+    await this.prisma.organization.delete({
+      where: {
+        id: organizationId,
+      },
+    });
   }
 }

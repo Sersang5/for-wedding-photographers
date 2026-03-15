@@ -1,4 +1,4 @@
-﻿export enum ActivityType {
+export enum ActivityType {
   NOTE = 'note',
   TASK = 'task',
   CALL = 'call',
@@ -6,17 +6,17 @@
 }
 
 export class ActivityEntity {
-  id!: string;
-  organizationId!: string;
-  userId!: string;
-  contactId?: string;
-  dealId?: string;
-  type!: ActivityType;
+  id!: bigint;
+  organizationId!: bigint;
+  userId!: bigint;
+  contactId?: bigint | null;
+  dealId?: bigint | null;
+  type!: ActivityType | string;
   title!: string;
-  description?: string;
-  dueDate?: Date;
+  description?: string | null;
+  dueDate?: Date | null;
   completed!: boolean;
-  metadata?: Record<string, unknown>;
+  metadata?: unknown;
   createdAt!: Date;
   updatedAt!: Date;
 }
