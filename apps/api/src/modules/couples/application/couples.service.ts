@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { toBigIntId } from '../../../common/utils/id.util';
+import { toBigIntId, toOptionalBigIntId } from '../../../common/utils/id.util';
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service';
 import { CoupleEntity } from '../domain/entities/couple.entity';
 import { CreateCoupleDto } from './dto/create-couple.dto';
@@ -11,6 +11,9 @@ export class CouplesService {
 
   async findAll(): Promise<CoupleEntity[]> {
     return this.prisma.couple.findMany({
+      include: {
+        pack: true,
+      },
       orderBy: {
         id: 'desc',
       },
@@ -21,6 +24,9 @@ export class CouplesService {
     const couple = await this.prisma.couple.findUnique({
       where: {
         id: toBigIntId(id, 'couple id'),
+      },
+      include: {
+        pack: true,
       },
     });
 
@@ -46,7 +52,10 @@ export class CouplesService {
         weddingDate: new Date(dto.weddingDate),
         location: dto.location,
         state: '0',
-        pack: dto.pack,
+        packId: toOptionalBigIntId(dto.packId, 'pack id'),
+      },
+      include: {
+        pack: true,
       },
     });
   }
@@ -72,7 +81,10 @@ export class CouplesService {
         weddingDate: dto.weddingDate ? new Date(dto.weddingDate) : undefined,
         location: dto.location,
         state: dto.state,
-        pack: dto.pack,
+        packId: toOptionalBigIntId(dto.packId, 'pack id'),
+      },
+      include: {
+        pack: true,
       },
     });
   }
@@ -88,3 +100,4 @@ export class CouplesService {
     });
   }
 }
+

@@ -1,6 +1,7 @@
 import {
   IsDateString,
   IsEmail,
+  IsNumberString,
   IsOptional,
   IsString,
   MinLength,
@@ -56,7 +57,8 @@ export class CreateCoupleDto {
   @IsOptional()
   state?: string;
 
-  @IsString()
+  @IsNumberString()
   @IsOptional()
-  pack?: string;
+  packId?: string;
 }
+

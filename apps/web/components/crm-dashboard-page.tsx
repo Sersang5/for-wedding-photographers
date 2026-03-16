@@ -5,6 +5,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 const sidebarItems = [
   { id: 'dashboard', label: 'Dashboard' },
   { id: 'parejas', label: 'Parejas' },
+  { id: 'packs', label: 'Packs' },
   { id: 'presupuestos', label: 'Presupuestos' },
   { id: 'actividades', label: 'Actividades' },
   { id: 'automatizaciones', label: 'Automatizaciones' },
@@ -21,6 +22,13 @@ type CalendarDay = {
   isToday: boolean;
 };
 
+type Pack = {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+};
+
 type Couple = {
   id: string;
   name1: string;
@@ -35,7 +43,8 @@ type Couple = {
   weddingDate?: string | null;
   location?: string | null;
   state?: string | null;
-  pack?: string | null;
+  packId?: string | null;
+  pack?: Pack | null;
 };
 
 type CoupleFormData = {
@@ -50,8 +59,14 @@ type CoupleFormData = {
   language: string;
   weddingDate: string;
   location: string;
-  pack: string;
+  packId: string;
   state: string;
+};
+
+type PackFormData = {
+  name: string;
+  description: string;
+  price: string;
 };
 
 const initialCoupleFormData: CoupleFormData = {
@@ -66,8 +81,14 @@ const initialCoupleFormData: CoupleFormData = {
   language: 'es',
   weddingDate: '',
   location: '',
-  pack: '0',
+  packId: '',
   state: '0',
+};
+
+const initialPackFormData: PackFormData = {
+  name: '',
+  description: '',
+  price: '',
 };
 
 const API_BASE_URL =
@@ -77,6 +98,26 @@ function normalizeOptional(value: string): string | undefined {
   const normalized = value.trim();
   return normalized.length > 0 ? normalized : undefined;
 }
+
+function parsePrice(value: string): number {
+  const normalized = value.trim().replace(',', '.');
+  const parsed = Number(normalized);
+
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    throw new Error('El precio debe ser un numero mayor o igual a 0.');
+  }
+
+  return parsed;
+}
+
+function formatPrice(value: number): string {
+  return new Intl.NumberFormat('es-ES', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+  }).format(value);
+}
+
 function formatDateForInput(dateValue?: string | null): string {
   if (!dateValue) {
     return '';
@@ -155,16 +196,8 @@ function getStateLabel(state?: string | null): string {
   return state ?? '-';
 }
 
-function getPackLabel(pack?: string | null): string {
-  if (pack === '0') {
-    return 'Simple';
-  }
-
-  if (pack === '1') {
-    return 'Completo';
-  }
-
-  return pack ?? '-';
+function getPackLabel(couple: Couple): string {
+  return couple.pack?.name ?? '-';
 }
 
 function getLanguageLabel(language?: string | null): string {
@@ -313,6 +346,7 @@ type CoupleFormModalProps = {
   isSaving: boolean;
   errorMessage: string | null;
   formData: CoupleFormData;
+  packs: Pack[];
   onClose: () => void;
   onChange: (field: keyof CoupleFormData, value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -325,6 +359,7 @@ function CoupleFormModal({
   isSaving,
   errorMessage,
   formData,
+  packs,
   onClose,
   onChange,
   onSubmit,
@@ -480,12 +515,16 @@ function CoupleFormModal({
             <label className="space-y-1 text-sm">
               <span className="font-medium text-brand-ink">Pack</span>
               <select
-                value={formData.pack}
-                onChange={(event) => onChange('pack', event.target.value)}
+                value={formData.packId}
+                onChange={(event) => onChange('packId', event.target.value)}
                 className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 outline-none transition focus:border-brand-clay"
               >
-                <option value="0">Simple</option>
-                <option value="1">Completo</option>
+                <option value="">Sin pack</option>
+                {packs.map((pack) => (
+                  <option key={pack.id} value={pack.id}>
+                    {pack.name} ({formatPrice(pack.price)})
+                  </option>
+                ))}
               </select>
             </label>
           </div>
@@ -552,6 +591,7 @@ function CoupleFormModal({
 
 type ParejasViewProps = {
   couples: Couple[];
+  packs: Pack[];
   isLoading: boolean;
   errorMessage: string | null;
   onCreate: (formData: CoupleFormData) => Promise<void>;
@@ -561,6 +601,7 @@ type ParejasViewProps = {
 
 function ParejasView({
   couples,
+  packs,
   isLoading,
   errorMessage,
   onCreate,
@@ -586,7 +627,7 @@ function ParejasView({
         `${couple.name1} ${couple.lastName1} ${couple.name2} ${couple.lastName2}`,
         couple.location ?? '',
         couple.state ?? '',
-        couple.pack ?? '',
+        couple.pack?.name ?? '',
         couple.weddingDate ?? '',
       ]
         .join(' ')
@@ -618,7 +659,7 @@ function ParejasView({
       language: couple.language ?? 'es',
       weddingDate: formatDateForInput(couple.weddingDate),
       location: couple.location ?? '',
-      pack: couple.pack ?? '0',
+      packId: couple.packId ?? couple.pack?.id ?? '',
       state: couple.state ?? '0',
     });
     setIsModalOpen(true);
@@ -775,7 +816,7 @@ function ParejasView({
                         {getStateLabel(couple.state)}
                       </span>
                     </td>
-                    <td className="px-3 py-3">{getPackLabel(couple.pack)}</td>
+                    <td className="px-3 py-3">{getPackLabel(couple)}</td>
                     <td className="px-3 py-3">{couple.location ?? '-'}</td>
                   </tr>
                 ))
@@ -791,10 +832,338 @@ function ParejasView({
         isSaving={isSaving}
         errorMessage={formError}
         formData={formData}
+        packs={packs}
         onClose={closeModal}
         onChange={handleFormChange}
         onSubmit={handleSubmit}
         onDelete={editingCoupleId ? handleDelete : undefined}
+      />
+    </section>
+  );
+}
+
+type PackFormModalProps = {
+  mode: 'create' | 'edit';
+  isOpen: boolean;
+  isSaving: boolean;
+  errorMessage: string | null;
+  formData: PackFormData;
+  onClose: () => void;
+  onChange: (field: keyof PackFormData, value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onDelete?: () => Promise<void>;
+};
+
+function PackFormModal({
+  mode,
+  isOpen,
+  isSaving,
+  errorMessage,
+  formData,
+  onClose,
+  onChange,
+  onSubmit,
+  onDelete,
+}: PackFormModalProps) {
+  if (!isOpen) {
+    return null;
+  }
+
+  const isEditMode = mode === 'edit';
+
+  async function handleDeleteClick() {
+    if (!isEditMode || !onDelete || isSaving) {
+      return;
+    }
+
+    const confirmed = window.confirm('Estas seguro de eliminar el pack?');
+    if (!confirmed) {
+      return;
+    }
+
+    await onDelete();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-2xl rounded-3xl border border-black/10 bg-white p-6 shadow-panel">
+        <div className="mb-4 flex items-start justify-between gap-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-brand-clay">
+            {isEditMode ? 'Editar pack' : 'Nuevo pack'}
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-black/15 px-3 py-1 text-sm text-black/70 transition hover:bg-black/5"
+          >
+            Cerrar
+          </button>
+        </div>
+
+        <form onSubmit={onSubmit} className="space-y-4">
+          <label className="block space-y-1 text-sm">
+            <span className="font-medium text-brand-ink">Nombre *</span>
+            <input
+              required
+              value={formData.name}
+              onChange={(event) => onChange('name', event.target.value)}
+              className="w-full rounded-xl border border-black/15 px-3 py-2 outline-none transition focus:border-brand-clay"
+            />
+          </label>
+
+          <label className="block space-y-1 text-sm">
+            <span className="font-medium text-brand-ink">Descripcion</span>
+            <textarea
+              rows={4}
+              value={formData.description}
+              onChange={(event) => onChange('description', event.target.value)}
+              className="w-full rounded-xl border border-black/15 px-3 py-2 outline-none transition focus:border-brand-clay"
+            />
+          </label>
+
+          <label className="block space-y-1 text-sm">
+            <span className="font-medium text-brand-ink">Precio *</span>
+            <input
+              required
+              inputMode="decimal"
+              value={formData.price}
+              onChange={(event) => onChange('price', event.target.value)}
+              placeholder="0.00"
+              className="w-full rounded-xl border border-black/15 px-3 py-2 outline-none transition focus:border-brand-clay"
+            />
+          </label>
+
+          {errorMessage ? (
+            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {errorMessage}
+            </p>
+          ) : null}
+
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              {isEditMode ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleDeleteClick();
+                  }}
+                  disabled={isSaving}
+                  className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  Eliminar
+                </button>
+              ) : null}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-xl border border-black/15 px-4 py-2 text-sm font-medium text-black/70 transition hover:bg-black/5"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={isSaving}
+                className="rounded-xl bg-brand-pine px-4 py-2 text-sm font-medium text-brand-cloud transition hover:bg-brand-sage disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                {isSaving ? 'Guardando...' : 'Guardar'}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+type PacksViewProps = {
+  packs: Pack[];
+  isLoading: boolean;
+  errorMessage: string | null;
+  onCreate: (formData: PackFormData) => Promise<void>;
+  onUpdate: (id: string, formData: PackFormData) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+};
+
+function PacksView({
+  packs,
+  isLoading,
+  errorMessage,
+  onCreate,
+  onUpdate,
+  onDelete,
+}: PacksViewProps) {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [editingPackId, setEditingPackId] = useState<string | null>(null);
+  const [formData, setFormData] = useState<PackFormData>(initialPackFormData);
+
+  function openCreateModal() {
+    setEditingPackId(null);
+    setFormError(null);
+    setFormData(initialPackFormData);
+    setIsModalOpen(true);
+  }
+
+  function openEditModal(pack: Pack) {
+    setEditingPackId(pack.id);
+    setFormError(null);
+    setFormData({
+      name: pack.name,
+      description: pack.description,
+      price: String(pack.price),
+    });
+    setIsModalOpen(true);
+  }
+
+  function closeModal() {
+    if (isSaving) {
+      return;
+    }
+
+    setIsModalOpen(false);
+    setEditingPackId(null);
+    setFormData(initialPackFormData);
+    setFormError(null);
+  }
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setIsSaving(true);
+    setFormError(null);
+
+    try {
+      if (editingPackId) {
+        await onUpdate(editingPackId, formData);
+      } else {
+        await onCreate(formData);
+      }
+      closeModal();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'No se pudo guardar el pack. Intentalo de nuevo.';
+      setFormError(message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!editingPackId) {
+      return;
+    }
+
+    setIsSaving(true);
+    setFormError(null);
+
+    try {
+      await onDelete(editingPackId);
+      closeModal();
+    } catch (error) {
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'No se pudo eliminar el pack. Intentalo de nuevo.';
+      setFormError(message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  function handleFormChange(field: keyof PackFormData, value: string) {
+    setFormData((previousValue) => ({ ...previousValue, [field]: value }));
+  }
+
+  return (
+    <section className="space-y-5">
+      <header className="rounded-3xl border border-black/5 bg-white/85 p-6 shadow-panel backdrop-blur-md">
+        <p className="text-sm uppercase tracking-[0.2em] text-brand-clay">Catalogo comercial</p>
+        <h2 className="mt-2 text-3xl font-semibold text-brand-ink md:text-4xl">Packs</h2>
+        <p className="mt-3 text-sm text-black/65 md:text-base">
+          Configura los packs que puede ofrecer el fotografo a cada pareja.
+        </p>
+      </header>
+
+      <article className="rounded-3xl border border-black/5 bg-white/90 p-6 shadow-panel backdrop-blur-md">
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h3 className="text-xl font-semibold text-brand-ink">Packs ({packs.length})</h3>
+          <button
+            type="button"
+            onClick={openCreateModal}
+            className="rounded-xl bg-brand-pine px-4 py-2 text-sm font-medium text-brand-cloud transition hover:bg-brand-sage"
+          >
+            Nuevo pack
+          </button>
+        </div>
+
+        {errorMessage ? (
+          <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {errorMessage}
+          </p>
+        ) : null}
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-black/10 text-black/55">
+                <th className="px-3 py-3 font-medium">Nombre</th>
+                <th className="px-3 py-3 font-medium">Descripcion</th>
+                <th className="px-3 py-3 font-medium">Precio</th>
+              </tr>
+            </thead>
+            <tbody>
+              {isLoading ? (
+                <tr>
+                  <td className="px-3 py-6 text-center text-black/60" colSpan={3}>
+                    Cargando packs...
+                  </td>
+                </tr>
+              ) : packs.length === 0 ? (
+                <tr>
+                  <td className="px-3 py-6 text-center text-black/60" colSpan={3}>
+                    Todavia no hay packs creados.
+                  </td>
+                </tr>
+              ) : (
+                packs.map((pack) => (
+                  <tr
+                    key={pack.id}
+                    className="border-b border-black/5 text-brand-ink hover:bg-brand-sand/25"
+                  >
+                    <td className="px-3 py-3">
+                      <button
+                        type="button"
+                        onClick={() => openEditModal(pack)}
+                        className="text-left font-medium underline decoration-brand-clay/40 underline-offset-4 transition hover:text-brand-clay"
+                      >
+                        {pack.name}
+                      </button>
+                    </td>
+                    <td className="px-3 py-3">{pack.description || '-'}</td>
+                    <td className="px-3 py-3">{formatPrice(pack.price)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </article>
+
+      <PackFormModal
+        mode={editingPackId ? 'edit' : 'create'}
+        isOpen={isModalOpen}
+        isSaving={isSaving}
+        errorMessage={formError}
+        formData={formData}
+        onClose={closeModal}
+        onChange={handleFormChange}
+        onSubmit={handleSubmit}
+        onDelete={editingPackId ? handleDelete : undefined}
       />
     </section>
   );
@@ -814,8 +1183,11 @@ function PlaceholderView({ title }: { title: string }) {
 export function CrmDashboardPage() {
   const [activeSection, setActiveSection] = useState<SectionId>('dashboard');
   const [couples, setCouples] = useState<Couple[]>([]);
+  const [packs, setPacks] = useState<Pack[]>([]);
   const [isCouplesLoading, setIsCouplesLoading] = useState(true);
+  const [isPacksLoading, setIsPacksLoading] = useState(true);
   const [couplesError, setCouplesError] = useState<string | null>(null);
+  const [packsError, setPacksError] = useState<string | null>(null);
 
   async function loadCouples() {
     setIsCouplesLoading(true);
@@ -835,10 +1207,26 @@ export function CrmDashboardPage() {
     }
   }
 
+  async function loadPacks() {
+    setIsPacksLoading(true);
+    setPacksError(null);
+
+    try {
+      const data = await fetchApi<Pack[]>(`${API_BASE_URL}/packs`);
+      setPacks(data);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'No se pudieron cargar los packs.';
+      setPacksError(message);
+    } finally {
+      setIsPacksLoading(false);
+    }
+  }
+
   useEffect(() => {
     void loadCouples();
+    void loadPacks();
   }, []);
-
   async function handleCreateCouple(formData: CoupleFormData) {
     const payload = {
       name1: formData.name1.trim(),
@@ -853,7 +1241,7 @@ export function CrmDashboardPage() {
       weddingDate: formData.weddingDate,
       location: normalizeOptional(formData.location),
       state: '0',
-      pack: normalizeOptional(formData.pack),
+      packId: normalizeOptional(formData.packId),
     };
 
     await fetchApi<Couple>(`${API_BASE_URL}/couples`, {
@@ -881,7 +1269,7 @@ export function CrmDashboardPage() {
       weddingDate: formData.weddingDate,
       location: normalizeOptional(formData.location),
       state: normalizeOptional(formData.state),
-      pack: normalizeOptional(formData.pack),
+      packId: normalizeOptional(formData.packId),
     };
 
     await fetchApi<Couple>(`${API_BASE_URL}/couples/${id}`, {
@@ -901,6 +1289,50 @@ export function CrmDashboardPage() {
     });
 
     await loadCouples();
+  }
+
+  async function handleCreatePack(formData: PackFormData) {
+    const payload = {
+      name: formData.name.trim(),
+      description: normalizeOptional(formData.description) ?? '',
+      price: parsePrice(formData.price),
+    };
+
+    await fetchApi<Pack>(`${API_BASE_URL}/packs`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    await Promise.all([loadPacks(), loadCouples()]);
+  }
+
+  async function handleUpdatePack(id: string, formData: PackFormData) {
+    const payload = {
+      name: formData.name.trim(),
+      description: normalizeOptional(formData.description) ?? '',
+      price: parsePrice(formData.price),
+    };
+
+    await fetchApi<Pack>(`${API_BASE_URL}/packs/${id}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    await Promise.all([loadPacks(), loadCouples()]);
+  }
+
+  async function handleDeletePack(id: string) {
+    await fetchApi<void>(`${API_BASE_URL}/packs/${id}`, {
+      method: 'DELETE',
+    });
+
+    await Promise.all([loadPacks(), loadCouples()]);
   }
   return (
     <main className="dashboard-fade-in h-screen overflow-hidden p-4 md:p-8">
@@ -947,11 +1379,22 @@ export function CrmDashboardPage() {
           {activeSection === 'parejas' ? (
             <ParejasView
               couples={couples}
+              packs={packs}
               isLoading={isCouplesLoading}
               errorMessage={couplesError}
               onCreate={handleCreateCouple}
               onUpdate={handleUpdateCouple}
               onDelete={handleDeleteCouple}
+            />
+          ) : null}
+          {activeSection === 'packs' ? (
+            <PacksView
+              packs={packs}
+              isLoading={isPacksLoading}
+              errorMessage={packsError}
+              onCreate={handleCreatePack}
+              onUpdate={handleUpdatePack}
+              onDelete={handleDeletePack}
             />
           ) : null}
           {activeSection === 'presupuestos' ? (
@@ -969,22 +1412,4 @@ export function CrmDashboardPage() {
     </main>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 

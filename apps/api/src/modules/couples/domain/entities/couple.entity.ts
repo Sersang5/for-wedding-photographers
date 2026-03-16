@@ -12,5 +12,12 @@ export class CoupleEntity {
   weddingDate?: Date | null;
   location?: string | null;
   state?: string | null;
-  pack?: string | null;
+  packId?: bigint | null;
+  pack?: {
+    id: bigint;
+    name: string;
+    description: string;
+    price: number;
+  } | null;
 }
+

@@ -118,6 +118,16 @@ model AuthSession {
   @@index([organizationId])
 }
 
+model Pack {
+  id          BigInt   @id @default(autoincrement()) @db.BigInt
+  name        String
+  description String
+  price       Float
+  couples     Couple[]
+
+  @@map("packs")
+}
+
 model Couple {
   id          BigInt    @id @default(autoincrement()) @db.BigInt
   name1       String    @map("name_1")
@@ -132,7 +142,9 @@ model Couple {
   weddingDate DateTime? @map("wedding_date")
   location    String?
   state       String?
-  pack        String?
+  packId      BigInt?   @map("pack_id") @db.BigInt
+  pack        Pack?     @relation(fields: [packId], references: [id], onDelete: SetNull)
 
   @@map("couples")
 }
+
