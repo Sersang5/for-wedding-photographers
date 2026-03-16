@@ -262,15 +262,11 @@ function DashboardView() {
   return (
     <section className="space-y-5">
       <header className="rounded-3xl border border-black/5 bg-white/85 p-6 shadow-panel backdrop-blur-md">
-        <p className="text-sm uppercase tracking-[0.2em] text-brand-clay">
-          Bienvenido de vuelta
-        </p>
         <h2 className="mt-2 text-3xl font-semibold text-brand-ink md:text-4xl">
-          Hola, Dani. Hoy toca cerrar otra gran historia.
+          Hola, Dani. 
         </h2>
         <p className="mt-3 max-w-3xl text-sm text-black/65 md:text-base">
-          Organiza sesiones, reuniones y entregas desde un unico panel. El
-          calendario te ayudara a mantener cada fecha de boda bajo control.
+          Hoy toca cerrar otra gran historia.
         </p>
       </header>
 
@@ -727,22 +723,10 @@ function ParejasView({
 
   return (
     <section className="space-y-5">
-      <header className="rounded-3xl border border-black/5 bg-white/85 p-6 shadow-panel backdrop-blur-md">
-        <p className="text-sm uppercase tracking-[0.2em] text-brand-clay">
-          Gestion de clientes
-        </p>
-        <h2 className="mt-2 text-3xl font-semibold text-brand-ink md:text-4xl">
-          Parejas
-        </h2>
-        <p className="mt-3 text-sm text-black/65 md:text-base">
-          Vista centralizada con todas las parejas activas de Lenwed.
-        </p>
-      </header>
-
       <article className="rounded-3xl border border-black/5 bg-white/90 p-6 shadow-panel backdrop-blur-md">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-xl font-semibold text-brand-ink">
-            Parejas ({filteredCouples.length})
+            Parejas
           </h3>
           <button
             type="button"
@@ -1082,16 +1066,15 @@ function PacksView({
   return (
     <section className="space-y-5">
       <header className="rounded-3xl border border-black/5 bg-white/85 p-6 shadow-panel backdrop-blur-md">
-        <p className="text-sm uppercase tracking-[0.2em] text-brand-clay">Catalogo comercial</p>
         <h2 className="mt-2 text-3xl font-semibold text-brand-ink md:text-4xl">Packs</h2>
         <p className="mt-3 text-sm text-black/65 md:text-base">
-          Configura los packs que puede ofrecer el fotografo a cada pareja.
+          Configura los packs que puedes ofrecer cada pareja.
         </p>
       </header>
 
       <article className="rounded-3xl border border-black/5 bg-white/90 p-6 shadow-panel backdrop-blur-md">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-xl font-semibold text-brand-ink">Packs ({packs.length})</h3>
+          <h3 className="text-xl font-semibold text-brand-ink">Packs   </h3>
           <button
             type="button"
             onClick={openCreateModal}
@@ -1339,9 +1322,6 @@ export function CrmDashboardPage() {
       <div className="mx-auto grid h-full max-w-7xl gap-5 md:grid-cols-[260px_1fr]">
         <aside className="h-full overflow-hidden rounded-3xl border border-black/5 bg-brand-pine p-6 text-brand-cloud shadow-panel">
           <div className="mb-8">
-            <p className="text-xs uppercase tracking-[0.25em] text-brand-sand/80">
-              Lenwed CRM
-            </p>
             <h1 className="mt-2 text-2xl font-semibold">Lenwed</h1>
           </div>
 
