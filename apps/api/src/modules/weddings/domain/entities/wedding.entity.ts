@@ -1,4 +1,4 @@
-export class CoupleEntity {
+export class WeddingEntity {
   id!: bigint;
   name1!: string;
   lastName1!: string;
@@ -20,4 +20,3 @@ export class CoupleEntity {
     price: number;
   } | null;
 }
-

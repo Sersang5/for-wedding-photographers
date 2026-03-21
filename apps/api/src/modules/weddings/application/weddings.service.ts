@@ -1,16 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { toBigIntId, toOptionalBigIntId } from '../../../common/utils/id.util';
 import { PrismaService } from '../../../infrastructure/prisma/prisma.service';
-import { CoupleEntity } from '../domain/entities/couple.entity';
-import { CreateCoupleDto } from './dto/create-couple.dto';
-import { UpdateCoupleDto } from './dto/update-couple.dto';
+import { WeddingEntity } from '../domain/entities/wedding.entity';
+import { CreateWeddingDto } from './dto/create-wedding.dto';
+import { UpdateWeddingDto } from './dto/update-wedding.dto';
 
 @Injectable()
-export class CouplesService {
+export class WeddingsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findAll(): Promise<CoupleEntity[]> {
-    return this.prisma.couple.findMany({
+  async findAll(): Promise<WeddingEntity[]> {
+    return this.prisma.wedding.findMany({
       include: {
         pack: true,
       },
@@ -20,25 +20,25 @@ export class CouplesService {
     });
   }
 
-  async findOne(id: string): Promise<CoupleEntity> {
-    const couple = await this.prisma.couple.findUnique({
+  async findOne(id: string): Promise<WeddingEntity> {
+    const wedding = await this.prisma.wedding.findUnique({
       where: {
-        id: toBigIntId(id, 'couple id'),
+        id: toBigIntId(id, 'wedding id'),
       },
       include: {
         pack: true,
       },
     });
 
-    if (!couple) {
-      throw new NotFoundException('Couple not found');
+    if (!wedding) {
+      throw new NotFoundException('Wedding not found');
     }
 
-    return couple;
+    return wedding;
   }
 
-  async create(dto: CreateCoupleDto): Promise<CoupleEntity> {
-    return this.prisma.couple.create({
+  async create(dto: CreateWeddingDto): Promise<WeddingEntity> {
+    return this.prisma.wedding.create({
       data: {
         name1: dto.name1,
         lastName1: dto.lastName1 ?? '',
@@ -60,13 +60,13 @@ export class CouplesService {
     });
   }
 
-  async update(id: string, dto: UpdateCoupleDto): Promise<CoupleEntity> {
-    const coupleId = toBigIntId(id, 'couple id');
+  async update(id: string, dto: UpdateWeddingDto): Promise<WeddingEntity> {
+    const weddingId = toBigIntId(id, 'wedding id');
     await this.findOne(id);
 
-    return this.prisma.couple.update({
+    return this.prisma.wedding.update({
       where: {
-        id: coupleId,
+        id: weddingId,
       },
       data: {
         name1: dto.name1,
@@ -90,14 +90,13 @@ export class CouplesService {
   }
 
   async remove(id: string): Promise<void> {
-    const coupleId = toBigIntId(id, 'couple id');
+    const weddingId = toBigIntId(id, 'wedding id');
     await this.findOne(id);
 
-    await this.prisma.couple.delete({
+    await this.prisma.wedding.delete({
       where: {
-        id: coupleId,
+        id: weddingId,
       },
     });
   }
 }
-

@@ -3,11 +3,11 @@ import { PrismaModule } from './infrastructure/prisma/prisma.module';
 import { ActivitiesModule } from './modules/activities/activities.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { ContactsModule } from './modules/contacts/contacts.module';
-import { CouplesModule } from './modules/couples/couples.module';
 import { DealsModule } from './modules/deals/deals.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { PacksModule } from './modules/packs/packs.module';
 import { UsersModule } from './modules/users/users.module';
+import { WeddingsModule } from './modules/weddings/weddings.module';
 
 @Module({
   imports: [
@@ -18,7 +18,7 @@ import { UsersModule } from './modules/users/users.module';
     ContactsModule,
     DealsModule,
     ActivitiesModule,
-    CouplesModule,
+    WeddingsModule,
     PacksModule,
   ],
 })

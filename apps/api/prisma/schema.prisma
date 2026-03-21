@@ -123,12 +123,12 @@ model Pack {
   name        String
   description String
   price       Float
-  couples     Couple[]
+  weddings    Wedding[]
 
   @@map("packs")
 }
 
-model Couple {
+model Wedding {
   id          BigInt    @id @default(autoincrement()) @db.BigInt
   name1       String    @map("name_1")
   lastName1   String    @map("last_name_1")
@@ -145,6 +145,6 @@ model Couple {
   packId      BigInt?   @map("pack_id") @db.BigInt
   pack        Pack?     @relation(fields: [packId], references: [id], onDelete: SetNull)
 
-  @@map("couples")
+  @@map("weddings")
 }
 

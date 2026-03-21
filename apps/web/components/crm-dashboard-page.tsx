@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 
 const sidebarItems = [
   { id: 'dashboard', label: 'Dashboard' },
-  { id: 'parejas', label: 'Parejas' },
+  { id: 'bodas', label: 'Bodas' },
   { id: 'packs', label: 'Packs' },
   { id: 'presupuestos', label: 'Presupuestos' },
   { id: 'actividades', label: 'Actividades' },
@@ -29,7 +29,7 @@ type Pack = {
   price: number;
 };
 
-type Couple = {
+type Wedding = {
   id: string;
   name1: string;
   lastName1: string;
@@ -47,7 +47,7 @@ type Couple = {
   pack?: Pack | null;
 };
 
-type CoupleFormData = {
+type WeddingFormData = {
   name1: string;
   lastName1: string;
   name2: string;
@@ -69,7 +69,7 @@ type PackFormData = {
   price: string;
 };
 
-const initialCoupleFormData: CoupleFormData = {
+const initialWeddingFormData: WeddingFormData = {
   name1: '',
   lastName1: '',
   name2: '',
@@ -196,8 +196,8 @@ function getStateLabel(state?: string | null): string {
   return state ?? '-';
 }
 
-function getPackLabel(couple: Couple): string {
-  return couple.pack?.name ?? '-';
+function getPackLabel(wedding: Wedding): string {
+  return wedding.pack?.name ?? '-';
 }
 
 function getLanguageLabel(language?: string | null): string {
@@ -336,20 +336,20 @@ function DashboardView() {
   );
 }
 
-type CoupleFormModalProps = {
+type WeddingFormModalProps = {
   mode: 'create' | 'edit';
   isOpen: boolean;
   isSaving: boolean;
   errorMessage: string | null;
-  formData: CoupleFormData;
+  formData: WeddingFormData;
   packs: Pack[];
   onClose: () => void;
-  onChange: (field: keyof CoupleFormData, value: string) => void;
+  onChange: (field: keyof WeddingFormData, value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
   onDelete?: () => Promise<void>;
 };
 
-function CoupleFormModal({
+function WeddingFormModal({
   mode,
   isOpen,
   isSaving,
@@ -360,7 +360,7 @@ function CoupleFormModal({
   onChange,
   onSubmit,
   onDelete,
-}: CoupleFormModalProps) {
+}: WeddingFormModalProps) {
   if (!isOpen) {
     return null;
   }
@@ -372,7 +372,7 @@ function CoupleFormModal({
       return;
     }
 
-    const confirmed = window.confirm('Estas seguro de eliminar la pareja?');
+    const confirmed = window.confirm('Estas seguro de eliminar la boda?');
     if (!confirmed) {
       return;
     }
@@ -386,7 +386,7 @@ function CoupleFormModal({
         <div className="mb-4 flex items-start justify-between gap-4">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-brand-clay">
-              {isEditMode ? 'Editar pareja' : 'Nueva pareja'}
+              {isEditMode ? 'Editar boda' : 'Nueva boda'}
             </p>
             
           </div>
@@ -585,78 +585,78 @@ function CoupleFormModal({
   );
 }
 
-type ParejasViewProps = {
-  couples: Couple[];
+type BodasViewProps = {
+  weddings: Wedding[];
   packs: Pack[];
   isLoading: boolean;
   errorMessage: string | null;
-  onCreate: (formData: CoupleFormData) => Promise<void>;
-  onUpdate: (id: string, formData: CoupleFormData) => Promise<void>;
+  onCreate: (formData: WeddingFormData) => Promise<void>;
+  onUpdate: (id: string, formData: WeddingFormData) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
 };
 
-function ParejasView({
-  couples,
+function BodasView({
+  weddings,
   packs,
   isLoading,
   errorMessage,
   onCreate,
   onUpdate,
   onDelete,
-}: ParejasViewProps) {
+}: BodasViewProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [editingCoupleId, setEditingCoupleId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<CoupleFormData>(initialCoupleFormData);
+  const [editingWeddingId, setEditingWeddingId] = useState<string | null>(null);
+  const [formData, setFormData] = useState<WeddingFormData>(initialWeddingFormData);
 
-  const filteredCouples = useMemo(() => {
+  const filteredWeddings = useMemo(() => {
     const query = searchTerm.trim().toLowerCase();
 
     if (!query) {
-      return couples;
+      return weddings;
     }
 
-    return couples.filter((couple) => {
+    return weddings.filter((wedding) => {
       const searchableContent = [
-        `${couple.name1} ${couple.lastName1} ${couple.name2} ${couple.lastName2}`,
-        couple.location ?? '',
-        couple.state ?? '',
-        couple.pack?.name ?? '',
-        couple.weddingDate ?? '',
+        `${wedding.name1} ${wedding.lastName1} ${wedding.name2} ${wedding.lastName2}`,
+        wedding.location ?? '',
+        wedding.state ?? '',
+        wedding.pack?.name ?? '',
+        wedding.weddingDate ?? '',
       ]
         .join(' ')
         .toLowerCase();
 
       return searchableContent.includes(query);
     });
-  }, [couples, searchTerm]);
+  }, [weddings, searchTerm]);
 
   function openCreateModal() {
-    setEditingCoupleId(null);
+    setEditingWeddingId(null);
     setFormError(null);
-    setFormData(initialCoupleFormData);
+    setFormData(initialWeddingFormData);
     setIsModalOpen(true);
   }
 
-  function openEditModal(couple: Couple) {
-    setEditingCoupleId(couple.id);
+  function openEditModal(wedding: Wedding) {
+    setEditingWeddingId(wedding.id);
     setFormError(null);
     setFormData({
-      name1: couple.name1 ?? '',
-      lastName1: couple.lastName1 ?? '',
-      name2: couple.name2 ?? '',
-      lastName2: couple.lastName2 ?? '',
-      email1: couple.email1 ?? '',
-      email2: couple.email2 ?? '',
-      phone1: couple.phone1 ?? '',
-      phone2: couple.phone2 ?? '',
-      language: couple.language ?? 'es',
-      weddingDate: formatDateForInput(couple.weddingDate),
-      location: couple.location ?? '',
-      packId: couple.packId ?? couple.pack?.id ?? '',
-      state: couple.state ?? '0',
+      name1: wedding.name1 ?? '',
+      lastName1: wedding.lastName1 ?? '',
+      name2: wedding.name2 ?? '',
+      lastName2: wedding.lastName2 ?? '',
+      email1: wedding.email1 ?? '',
+      email2: wedding.email2 ?? '',
+      phone1: wedding.phone1 ?? '',
+      phone2: wedding.phone2 ?? '',
+      language: wedding.language ?? 'es',
+      weddingDate: formatDateForInput(wedding.weddingDate),
+      location: wedding.location ?? '',
+      packId: wedding.packId ?? wedding.pack?.id ?? '',
+      state: wedding.state ?? '0',
     });
     setIsModalOpen(true);
   }
@@ -667,8 +667,8 @@ function ParejasView({
     }
 
     setIsModalOpen(false);
-    setEditingCoupleId(null);
-    setFormData(initialCoupleFormData);
+    setEditingWeddingId(null);
+    setFormData(initialWeddingFormData);
     setFormError(null);
   }
 
@@ -678,8 +678,8 @@ function ParejasView({
     setFormError(null);
 
     try {
-      if (editingCoupleId) {
-        await onUpdate(editingCoupleId, formData);
+      if (editingWeddingId) {
+        await onUpdate(editingWeddingId, formData);
       } else {
         await onCreate(formData);
       }
@@ -688,7 +688,7 @@ function ParejasView({
       const message =
         error instanceof Error
           ? error.message
-          : 'No se pudo guardar la pareja. Intentalo de nuevo.';
+          : 'No se pudo guardar la boda. Intentalo de nuevo.';
       setFormError(message);
     } finally {
       setIsSaving(false);
@@ -696,7 +696,7 @@ function ParejasView({
   }
 
   async function handleDelete() {
-    if (!editingCoupleId) {
+    if (!editingWeddingId) {
       return;
     }
 
@@ -704,20 +704,20 @@ function ParejasView({
     setFormError(null);
 
     try {
-      await onDelete(editingCoupleId);
+      await onDelete(editingWeddingId);
       closeModal();
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
-          : 'No se pudo eliminar la pareja. Intentalo de nuevo.';
+          : 'No se pudo eliminar la boda. Intentalo de nuevo.';
       setFormError(message);
     } finally {
       setIsSaving(false);
     }
   }
 
-  function handleFormChange(field: keyof CoupleFormData, value: string) {
+  function handleFormChange(field: keyof WeddingFormData, value: string) {
     setFormData((previousValue) => ({ ...previousValue, [field]: value }));
   }
 
@@ -726,14 +726,14 @@ function ParejasView({
       <article className="rounded-3xl border border-black/5 bg-white/90 p-6 shadow-panel backdrop-blur-md">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-xl font-semibold text-brand-ink">
-            Parejas
+            Bodas
           </h3>
           <button
             type="button"
             onClick={openCreateModal}
             className="rounded-xl bg-brand-pine px-4 py-2 text-sm font-medium text-brand-cloud transition hover:bg-brand-sage"
           >
-            Nueva pareja
+            Nueva boda
           </button>
         </div>
 
@@ -742,10 +742,10 @@ function ParejasView({
             type="search"
             value={searchTerm}
             onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Buscar por pareja, estado, pack o ubicacion"
+            placeholder="Buscar por boda, estado, pack o ubicacion"
             className="w-full max-w-md rounded-xl border border-black/15 px-3 py-2 text-sm outline-none transition focus:border-brand-clay"
           />
-          <span className="text-xs text-black/50">Total: {couples.length}</span>
+          <span className="text-xs text-black/50">Total: {weddings.length}</span>
         </div>
 
         {errorMessage ? (
@@ -758,7 +758,7 @@ function ParejasView({
           <table className="min-w-full text-left text-sm">
             <thead>
               <tr className="border-b border-black/10 text-black/55">
-                <th className="px-3 py-3 font-medium">Pareja</th>
+                <th className="px-3 py-3 font-medium">Boda</th>
                 <th className="px-3 py-3 font-medium">Fecha</th>
                 <th className="px-3 py-3 font-medium">Estado</th>
                 <th className="px-3 py-3 font-medium">Pack</th>
@@ -769,39 +769,39 @@ function ParejasView({
               {isLoading ? (
                 <tr>
                   <td className="px-3 py-6 text-center text-black/60" colSpan={5}>
-                    Cargando parejas...
+                    Cargando bodas...
                   </td>
                 </tr>
-              ) : filteredCouples.length === 0 ? (
+              ) : filteredWeddings.length === 0 ? (
                 <tr>
                   <td className="px-3 py-6 text-center text-black/60" colSpan={5}>
                     No hay resultados para tu busqueda.
                   </td>
                 </tr>
               ) : (
-                filteredCouples.map((couple) => (
+                filteredWeddings.map((wedding) => (
                   <tr
-                    key={couple.id}
+                    key={wedding.id}
                     className="border-b border-black/5 text-brand-ink hover:bg-brand-sand/25"
                   >
                     <td className="px-3 py-3">
                       <button
                         type="button"
-                        onClick={() => openEditModal(couple)}
+                        onClick={() => openEditModal(wedding)}
                         className="text-left font-medium underline decoration-brand-clay/40 underline-offset-4 transition hover:text-brand-clay"
                       >
-                        {couple.name1} {couple.lastName1} & {couple.name2}{' '}
-                        {couple.lastName2}
+                        {wedding.name1} {wedding.lastName1} & {wedding.name2}{' '}
+                        {wedding.lastName2}
                       </button>
                     </td>
-                    <td className="px-3 py-3">{getReadableDate(couple.weddingDate)}</td>
+                    <td className="px-3 py-3">{getReadableDate(wedding.weddingDate)}</td>
                     <td className="px-3 py-3">
                       <span className="rounded-full bg-brand-sage/15 px-2.5 py-1 text-xs font-medium text-brand-sage">
-                        {getStateLabel(couple.state)}
+                        {getStateLabel(wedding.state)}
                       </span>
                     </td>
-                    <td className="px-3 py-3">{getPackLabel(couple)}</td>
-                    <td className="px-3 py-3">{couple.location ?? '-'}</td>
+                    <td className="px-3 py-3">{getPackLabel(wedding)}</td>
+                    <td className="px-3 py-3">{wedding.location ?? '-'}</td>
                   </tr>
                 ))
               )}
@@ -810,8 +810,8 @@ function ParejasView({
         </div>
       </article>
 
-      <CoupleFormModal
-        mode={editingCoupleId ? 'edit' : 'create'}
+      <WeddingFormModal
+        mode={editingWeddingId ? 'edit' : 'create'}
         isOpen={isModalOpen}
         isSaving={isSaving}
         errorMessage={formError}
@@ -820,7 +820,7 @@ function ParejasView({
         onClose={closeModal}
         onChange={handleFormChange}
         onSubmit={handleSubmit}
-        onDelete={editingCoupleId ? handleDelete : undefined}
+        onDelete={editingWeddingId ? handleDelete : undefined}
       />
     </section>
   );
@@ -1068,7 +1068,7 @@ function PacksView({
       <header className="rounded-3xl border border-black/5 bg-white/85 p-6 shadow-panel backdrop-blur-md">
         <h2 className="mt-2 text-3xl font-semibold text-brand-ink md:text-4xl">Packs</h2>
         <p className="mt-3 text-sm text-black/65 md:text-base">
-          Configura los packs que puedes ofrecer cada pareja.
+          Configura los packs que puedes ofrecer cada boda.
         </p>
       </header>
 
@@ -1165,28 +1165,28 @@ function PlaceholderView({ title }: { title: string }) {
 
 export function CrmDashboardPage() {
   const [activeSection, setActiveSection] = useState<SectionId>('dashboard');
-  const [couples, setCouples] = useState<Couple[]>([]);
+  const [weddings, setWeddings] = useState<Wedding[]>([]);
   const [packs, setPacks] = useState<Pack[]>([]);
-  const [isCouplesLoading, setIsCouplesLoading] = useState(true);
+  const [isWeddingsLoading, setIsWeddingsLoading] = useState(true);
   const [isPacksLoading, setIsPacksLoading] = useState(true);
-  const [couplesError, setCouplesError] = useState<string | null>(null);
+  const [weddingsError, setWeddingsError] = useState<string | null>(null);
   const [packsError, setPacksError] = useState<string | null>(null);
 
-  async function loadCouples() {
-    setIsCouplesLoading(true);
-    setCouplesError(null);
+  async function loadWeddings() {
+    setIsWeddingsLoading(true);
+    setWeddingsError(null);
 
     try {
-      const data = await fetchApi<Couple[]>(`${API_BASE_URL}/couples`);
-      setCouples(data);
+      const data = await fetchApi<Wedding[]>(`${API_BASE_URL}/weddings`);
+      setWeddings(data);
     } catch (error) {
       const message =
         error instanceof Error
           ? error.message
-          : 'No se pudieron cargar las parejas.';
-      setCouplesError(message);
+          : 'No se pudieron cargar las bodas.';
+      setWeddingsError(message);
     } finally {
-      setIsCouplesLoading(false);
+      setIsWeddingsLoading(false);
     }
   }
 
@@ -1207,10 +1207,10 @@ export function CrmDashboardPage() {
   }
 
   useEffect(() => {
-    void loadCouples();
+    void loadWeddings();
     void loadPacks();
   }, []);
-  async function handleCreateCouple(formData: CoupleFormData) {
+  async function handleCreateWedding(formData: WeddingFormData) {
     const payload = {
       name1: formData.name1.trim(),
       lastName1: normalizeOptional(formData.lastName1),
@@ -1227,7 +1227,7 @@ export function CrmDashboardPage() {
       packId: normalizeOptional(formData.packId),
     };
 
-    await fetchApi<Couple>(`${API_BASE_URL}/couples`, {
+    await fetchApi<Wedding>(`${API_BASE_URL}/weddings`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -1235,10 +1235,10 @@ export function CrmDashboardPage() {
       body: JSON.stringify(payload),
     });
 
-    await loadCouples();
+    await loadWeddings();
   }
 
-  async function handleUpdateCouple(id: string, formData: CoupleFormData) {
+  async function handleUpdateWedding(id: string, formData: WeddingFormData) {
     const payload = {
       name1: formData.name1.trim(),
       lastName1: normalizeOptional(formData.lastName1),
@@ -1255,7 +1255,7 @@ export function CrmDashboardPage() {
       packId: normalizeOptional(formData.packId),
     };
 
-    await fetchApi<Couple>(`${API_BASE_URL}/couples/${id}`, {
+    await fetchApi<Wedding>(`${API_BASE_URL}/weddings/${id}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -1263,15 +1263,15 @@ export function CrmDashboardPage() {
       body: JSON.stringify(payload),
     });
 
-    await loadCouples();
+    await loadWeddings();
   }
 
-  async function handleDeleteCouple(id: string) {
-    await fetchApi<void>(`${API_BASE_URL}/couples/${id}`, {
+  async function handleDeleteWedding(id: string) {
+    await fetchApi<void>(`${API_BASE_URL}/weddings/${id}`, {
       method: 'DELETE',
     });
 
-    await loadCouples();
+    await loadWeddings();
   }
 
   async function handleCreatePack(formData: PackFormData) {
@@ -1289,7 +1289,7 @@ export function CrmDashboardPage() {
       body: JSON.stringify(payload),
     });
 
-    await Promise.all([loadPacks(), loadCouples()]);
+    await Promise.all([loadPacks(), loadWeddings()]);
   }
 
   async function handleUpdatePack(id: string, formData: PackFormData) {
@@ -1307,7 +1307,7 @@ export function CrmDashboardPage() {
       body: JSON.stringify(payload),
     });
 
-    await Promise.all([loadPacks(), loadCouples()]);
+    await Promise.all([loadPacks(), loadWeddings()]);
   }
 
   async function handleDeletePack(id: string) {
@@ -1315,7 +1315,7 @@ export function CrmDashboardPage() {
       method: 'DELETE',
     });
 
-    await Promise.all([loadPacks(), loadCouples()]);
+    await Promise.all([loadPacks(), loadWeddings()]);
   }
   return (
     <main className="dashboard-fade-in h-screen overflow-hidden p-4 md:p-8">
@@ -1356,15 +1356,15 @@ export function CrmDashboardPage() {
 
         <div className="lenwed-scroll-area h-full overflow-y-auto">
           {activeSection === 'dashboard' ? <DashboardView /> : null}
-          {activeSection === 'parejas' ? (
-            <ParejasView
-              couples={couples}
+          {activeSection === 'bodas' ? (
+            <BodasView
+              weddings={weddings}
               packs={packs}
-              isLoading={isCouplesLoading}
-              errorMessage={couplesError}
-              onCreate={handleCreateCouple}
-              onUpdate={handleUpdateCouple}
-              onDelete={handleDeleteCouple}
+              isLoading={isWeddingsLoading}
+              errorMessage={weddingsError}
+              onCreate={handleCreateWedding}
+              onUpdate={handleUpdateWedding}
+              onDelete={handleDeleteWedding}
             />
           ) : null}
           {activeSection === 'packs' ? (

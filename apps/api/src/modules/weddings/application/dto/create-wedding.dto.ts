@@ -7,7 +7,7 @@ import {
   MinLength,
 } from 'class-validator';
 
-export class CreateCoupleDto {
+export class CreateWeddingDto {
   @IsString()
   @MinLength(2)
   name1!: string;
@@ -61,4 +61,3 @@ export class CreateCoupleDto {
   @IsOptional()
   packId?: string;
 }
-
