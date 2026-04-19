@@ -53,9 +53,9 @@ export class CreateWeddingDto {
   @IsOptional()
   location?: string;
 
-  @IsString()
+  @IsNumberString()
   @IsOptional()
-  state?: string;
+  stateId?: string;
 
   @IsNumberString()
   @IsOptional()

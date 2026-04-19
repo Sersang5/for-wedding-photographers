@@ -1,5 +1,6 @@
 export class WeddingEntity {
   id!: bigint;
+  organizationId!: bigint;
   name1!: string;
   lastName1!: string;
   name2!: string;
@@ -11,7 +12,14 @@ export class WeddingEntity {
   language?: string | null;
   weddingDate?: Date | null;
   location?: string | null;
-  state?: string | null;
+  stateId!: bigint;
+  state!: {
+    id: bigint;
+    code: string;
+    name: string;
+    sortOrder: number;
+    isActive: boolean;
+  };
   packId?: bigint | null;
   pack?: {
     id: bigint;

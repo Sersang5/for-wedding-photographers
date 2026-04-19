@@ -1,2 +1,2 @@
 -- DropIndex
-DROP INDEX "couples_pack_id_idx";
+DROP INDEX IF EXISTS "couples_pack_id_idx";

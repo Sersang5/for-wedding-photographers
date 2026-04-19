@@ -7,6 +7,7 @@ import { DealsModule } from './modules/deals/deals.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { PacksModule } from './modules/packs/packs.module';
 import { UsersModule } from './modules/users/users.module';
+import { WeddingStatesModule } from './modules/wedding-states/wedding-states.module';
 import { WeddingsModule } from './modules/weddings/weddings.module';
 
 @Module({
@@ -19,8 +20,8 @@ import { WeddingsModule } from './modules/weddings/weddings.module';
     DealsModule,
     ActivitiesModule,
     WeddingsModule,
+    WeddingStatesModule,
     PacksModule,
   ],
 })
 export class AppModule {}
-

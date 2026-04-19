@@ -1,6 +1,10 @@
+
 'use client';
 
 import { FormEvent, useEffect, useMemo, useState } from 'react';
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000/api';
 
 const sidebarItems = [
   { id: 'dashboard', label: 'Dashboard' },
@@ -14,14 +18,6 @@ const sidebarItems = [
 
 type SectionId = (typeof sidebarItems)[number]['id'];
 
-const weekdayLabels = ['L', 'M', 'X', 'J', 'V', 'S', 'D'] as const;
-
-type CalendarDay = {
-  dayNumber: number;
-  inCurrentMonth: boolean;
-  isToday: boolean;
-};
-
 type Pack = {
   id: string;
   name: string;
@@ -29,8 +25,17 @@ type Pack = {
   price: number;
 };
 
+type WeddingState = {
+  id: string;
+  code: string;
+  name: string;
+  sortOrder: number;
+  isActive: boolean;
+};
+
 type Wedding = {
   id: string;
+  organizationId: string;
   name1: string;
   lastName1: string;
   name2: string;
@@ -42,7 +47,8 @@ type Wedding = {
   language?: string | null;
   weddingDate?: string | null;
   location?: string | null;
-  state?: string | null;
+  stateId?: string | null;
+  state?: WeddingState | null;
   packId?: string | null;
   pack?: Pack | null;
 };
@@ -60,7 +66,7 @@ type WeddingFormData = {
   weddingDate: string;
   location: string;
   packId: string;
-  state: string;
+  stateId: string;
 };
 
 type PackFormData = {
@@ -82,7 +88,7 @@ const initialWeddingFormData: WeddingFormData = {
   weddingDate: '',
   location: '',
   packId: '',
-  state: '0',
+  stateId: '',
 };
 
 const initialPackFormData: PackFormData = {
@@ -90,9 +96,6 @@ const initialPackFormData: PackFormData = {
   description: '',
   price: '',
 };
-
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:3000/api';
 
 function normalizeOptional(value: string): string | undefined {
   const normalized = value.trim();
@@ -128,6 +131,7 @@ function formatDateForInput(dateValue?: string | null): string {
   }
 
   const parsedDate = new Date(dateValue);
+
   if (Number.isNaN(parsedDate.getTime())) {
     return '';
   }
@@ -135,8 +139,48 @@ function formatDateForInput(dateValue?: string | null): string {
   return parsedDate.toISOString().slice(0, 10);
 }
 
+function getReadableDate(dateValue?: string | null): string {
+  if (!dateValue) {
+    return '-';
+  }
+
+  const parsedDate = new Date(dateValue);
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return '-';
+  }
+
+  return new Intl.DateTimeFormat('es-ES', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }).format(parsedDate);
+}
+
+function getOrganizationId(): string | null {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  return localStorage.getItem('organizationId');
+}
+
 async function fetchApi<T>(url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, init);
+  const headers = new Headers(init?.headers);
+  const organizationId = getOrganizationId();
+
+  if (organizationId) {
+    headers.set('x-organization-id', organizationId);
+  }
+
+  if (init?.body && !headers.has('Content-Type')) {
+    headers.set('Content-Type', 'application/json');
+  }
+
+  const response = await fetch(url, {
+    ...init,
+    headers,
+  });
 
   if (!response.ok) {
     let message = 'No se pudo completar la peticion.';
@@ -163,175 +207,24 @@ async function fetchApi<T>(url: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-function getMonthLabel(date: Date): string {
-  return new Intl.DateTimeFormat('es-ES', {
-    month: 'long',
-    year: 'numeric',
-  }).format(date);
-}
-
-function getReadableDate(dateValue?: string | null): string {
-  if (!dateValue) {
-    return '-';
-  }
-
-  const parsedDate = new Date(dateValue);
-
-  if (Number.isNaN(parsedDate.getTime())) {
-    return '-';
-  }
-
-  return new Intl.DateTimeFormat('es-ES', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(parsedDate);
-}
-
-function getStateLabel(state?: string | null): string {
-  if (state === '0') {
-    return 'Nueva boda';
-  }
-
-  return state ?? '-';
-}
-
-function getPackLabel(wedding: Wedding): string {
-  return wedding.pack?.name ?? '-';
-}
-
-function getLanguageLabel(language?: string | null): string {
-  if (language === 'es') {
-    return 'Espanol';
-  }
-
-  if (language === 'en') {
-    return 'Ingles';
-  }
-
-  return language ?? '-';
-}
-function buildCalendarDays(referenceDate: Date): CalendarDay[] {
-  const year = referenceDate.getFullYear();
-  const month = referenceDate.getMonth();
-
-  const firstDay = new Date(year, month, 1);
-  const startDay = (firstDay.getDay() + 6) % 7;
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const daysInPrevMonth = new Date(year, month, 0).getDate();
-
-  const today = new Date();
-  const isCurrentMonthToday =
-    today.getFullYear() === year && today.getMonth() === month;
-
-  const days: CalendarDay[] = [];
-
-  for (let i = startDay - 1; i >= 0; i -= 1) {
-    days.push({
-      dayNumber: daysInPrevMonth - i,
-      inCurrentMonth: false,
-      isToday: false,
-    });
-  }
-
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    days.push({
-      dayNumber: day,
-      inCurrentMonth: true,
-      isToday: isCurrentMonthToday && today.getDate() === day,
-    });
-  }
-
-  const trailingDays = (7 - (days.length % 7)) % 7;
-  for (let day = 1; day <= trailingDays; day += 1) {
-    days.push({
-      dayNumber: day,
-      inCurrentMonth: false,
-      isToday: false,
-    });
-  }
-
-  return days;
-}
-
 function DashboardView() {
-  const currentDate = new Date();
-  const monthLabel = getMonthLabel(currentDate);
-  const calendarDays = buildCalendarDays(currentDate);
-
   return (
-    <section className="space-y-5">
-      <header className="rounded-3xl border border-black/5 bg-white/85 p-6 shadow-panel backdrop-blur-md">
-        <h2 className="mt-2 text-3xl font-semibold text-brand-ink md:text-4xl">
-          Hola, Dani. 
-        </h2>
-        <p className="mt-3 max-w-3xl text-sm text-black/65 md:text-base">
-          Hoy toca cerrar otra gran historia.
-        </p>
-      </header>
+    <section className="rounded-3xl border border-black/5 bg-white/85 p-6 shadow-panel backdrop-blur-md">
+      <h2 className="text-3xl font-semibold text-brand-ink">Dashboard</h2>
+      <p className="mt-2 text-sm text-black/65">
+        Agenda, resumen y actividad de la semana.
+      </p>
+    </section>
+  );
+}
 
-      <div className="grid gap-5 xl:grid-cols-[1fr_310px]">
-        <article className="rounded-3xl border border-black/5 bg-white/90 p-6 shadow-panel backdrop-blur-md">
-          <div className="mb-4 flex items-center justify-between">
-            <h3 className="text-xl font-semibold capitalize text-brand-ink">
-              {monthLabel}
-            </h3>
-            <span className="rounded-full bg-brand-sage/15 px-3 py-1 text-xs font-medium text-brand-sage">
-              Agenda de bodas
-            </span>
-          </div>
-
-          <div className="grid grid-cols-7 gap-2 text-center text-xs font-semibold text-black/45">
-            {weekdayLabels.map((weekday) => (
-              <div key={weekday} className="py-1">
-                {weekday}
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-2 grid grid-cols-7 gap-2">
-            {calendarDays.map((day, index) => (
-              <div
-                key={`${day.dayNumber}-${index}`}
-                className={`h-16 rounded-xl border p-2 text-sm transition md:h-20 ${
-                  day.isToday
-                    ? 'border-brand-clay bg-brand-clay/10 text-brand-clay'
-                    : day.inCurrentMonth
-                      ? 'border-black/5 bg-brand-cloud text-brand-ink'
-                      : 'border-transparent bg-black/[0.03] text-black/35'
-                }`}
-              >
-                <span className="font-medium">{day.dayNumber}</span>
-                {day.inCurrentMonth && day.dayNumber % 5 === 0 ? (
-                  <div className="mt-2 h-1.5 w-1.5 rounded-full bg-brand-sage" />
-                ) : null}
-              </div>
-            ))}
-          </div>
-        </article>
-
-        <aside className="rounded-3xl border border-black/5 bg-white/90 p-6 shadow-panel backdrop-blur-md">
-          <h3 className="text-lg font-semibold">Hoy en resumen</h3>
-          <ul className="mt-4 space-y-3 text-sm text-black/70">
-            <li className="rounded-xl bg-brand-sand/45 p-3">
-              10:00 - Reunion inicial con Laura & Jose
-            </li>
-            <li className="rounded-xl bg-brand-sand/45 p-3">
-              13:30 - Llamada seguimiento presupuesto
-            </li>
-            <li className="rounded-xl bg-brand-sand/45 p-3">
-              17:00 - Entrega galeria preboda
-            </li>
-          </ul>
-
-          <button
-            type="button"
-            className="mt-6 w-full rounded-xl bg-brand-pine px-4 py-3 text-sm font-medium text-brand-cloud transition hover:bg-brand-sage"
-          >
-            Nueva actividad
-          </button>
-        </aside>
-      </div>
+function PlaceholderView({ title }: { title: string }) {
+  return (
+    <section className="rounded-3xl border border-black/5 bg-white/85 p-6 shadow-panel backdrop-blur-md">
+      <h2 className="text-3xl font-semibold text-brand-ink">{title}</h2>
+      <p className="mt-2 text-sm text-black/65">
+        Esta seccion estara disponible en siguientes iteraciones.
+      </p>
     </section>
   );
 }
@@ -343,6 +236,7 @@ type WeddingFormModalProps = {
   errorMessage: string | null;
   formData: WeddingFormData;
   packs: Pack[];
+  states: WeddingState[];
   onClose: () => void;
   onChange: (field: keyof WeddingFormData, value: string) => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
@@ -356,6 +250,7 @@ function WeddingFormModal({
   errorMessage,
   formData,
   packs,
+  states,
   onClose,
   onChange,
   onSubmit,
@@ -373,6 +268,7 @@ function WeddingFormModal({
     }
 
     const confirmed = window.confirm('Estas seguro de eliminar la boda?');
+
     if (!confirmed) {
       return;
     }
@@ -383,198 +279,63 @@ function WeddingFormModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-3xl border border-black/10 bg-white p-6 shadow-panel">
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-brand-clay">
-              {isEditMode ? 'Editar boda' : 'Nueva boda'}
-            </p>
-            
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-black/15 px-3 py-1 text-sm text-black/70 transition hover:bg-black/5"
-          >
-            Cerrar
-          </button>
-        </div>
-
         <form onSubmit={onSubmit} className="space-y-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-brand-clay">
+            {isEditMode ? 'Editar boda' : 'Nueva boda'}
+          </p>
+
           <div className="grid gap-4 md:grid-cols-2">
-            <div className="md:col-span-2 rounded-xl bg-brand-sand/35 px-3 py-2 text-sm font-semibold text-brand-ink">
-              Ella
-            </div>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium text-brand-ink">Nombre *</span>
-              <input
-                required
-                value={formData.name1}
-                onChange={(event) => onChange('name1', event.target.value)}
-                className="w-full rounded-xl border border-black/15 px-3 py-2 outline-none transition focus:border-brand-clay"
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium text-brand-ink">Apellidos</span>
-              <input
-                value={formData.lastName1}
-                onChange={(event) => onChange('lastName1', event.target.value)}
-                className="w-full rounded-xl border border-black/15 px-3 py-2 outline-none transition focus:border-brand-clay"
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium text-brand-ink">Email</span>
-              <input
-                type="email"
-                value={formData.email1}
-                onChange={(event) => onChange('email1', event.target.value)}
-                className="w-full rounded-xl border border-black/15 px-3 py-2 outline-none transition focus:border-brand-clay"
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium text-brand-ink">Telefono</span>
-              <input
-                value={formData.phone1}
-                onChange={(event) => onChange('phone1', event.target.value)}
-                className="w-full rounded-xl border border-black/15 px-3 py-2 outline-none transition focus:border-brand-clay"
-              />
-            </label>
+            <input required value={formData.name1} onChange={(event) => onChange('name1', event.target.value)} placeholder="Nombre 1" className="rounded-xl border border-black/15 px-3 py-2" />
+            <input value={formData.lastName1} onChange={(event) => onChange('lastName1', event.target.value)} placeholder="Apellidos 1" className="rounded-xl border border-black/15 px-3 py-2" />
+            <input required value={formData.name2} onChange={(event) => onChange('name2', event.target.value)} placeholder="Nombre 2" className="rounded-xl border border-black/15 px-3 py-2" />
+            <input value={formData.lastName2} onChange={(event) => onChange('lastName2', event.target.value)} placeholder="Apellidos 2" className="rounded-xl border border-black/15 px-3 py-2" />
+            <input type="email" value={formData.email1} onChange={(event) => onChange('email1', event.target.value)} placeholder="Email 1" className="rounded-xl border border-black/15 px-3 py-2" />
+            <input type="email" value={formData.email2} onChange={(event) => onChange('email2', event.target.value)} placeholder="Email 2" className="rounded-xl border border-black/15 px-3 py-2" />
+            <input value={formData.phone1} onChange={(event) => onChange('phone1', event.target.value)} placeholder="Telefono 1" className="rounded-xl border border-black/15 px-3 py-2" />
+            <input value={formData.phone2} onChange={(event) => onChange('phone2', event.target.value)} placeholder="Telefono 2" className="rounded-xl border border-black/15 px-3 py-2" />
+            <input required type="date" value={formData.weddingDate} onChange={(event) => onChange('weddingDate', event.target.value)} className="rounded-xl border border-black/15 px-3 py-2" />
+            <input value={formData.location} onChange={(event) => onChange('location', event.target.value)} placeholder="Ubicacion" className="rounded-xl border border-black/15 px-3 py-2" />
 
-            <div className="md:col-span-2 mt-1 rounded-xl bg-brand-sand/35 px-3 py-2 text-sm font-semibold text-brand-ink">
-              Él
-            </div>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium text-brand-ink">Nombre *</span>
-              <input
-                required
-                value={formData.name2}
-                onChange={(event) => onChange('name2', event.target.value)}
-                className="w-full rounded-xl border border-black/15 px-3 py-2 outline-none transition focus:border-brand-clay"
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium text-brand-ink">Apellidos</span>
-              <input
-                value={formData.lastName2}
-                onChange={(event) => onChange('lastName2', event.target.value)}
-                className="w-full rounded-xl border border-black/15 px-3 py-2 outline-none transition focus:border-brand-clay"
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium text-brand-ink">Email</span>
-              <input
-                type="email"
-                value={formData.email2}
-                onChange={(event) => onChange('email2', event.target.value)}
-                className="w-full rounded-xl border border-black/15 px-3 py-2 outline-none transition focus:border-brand-clay"
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium text-brand-ink">Telefono</span>
-              <input
-                value={formData.phone2}
-                onChange={(event) => onChange('phone2', event.target.value)}
-                className="w-full rounded-xl border border-black/15 px-3 py-2 outline-none transition focus:border-brand-clay"
-              />
-            </label>
+            <select value={formData.language} onChange={(event) => onChange('language', event.target.value)} className="rounded-xl border border-black/15 px-3 py-2">
+              <option value="es">Espanol</option>
+              <option value="en">Ingles</option>
+            </select>
+            <select value={formData.packId} onChange={(event) => onChange('packId', event.target.value)} className="rounded-xl border border-black/15 px-3 py-2">
+              <option value="">Sin pack</option>
+              {packs.map((pack) => (
+                <option key={pack.id} value={pack.id}>
+                  {pack.name} ({formatPrice(pack.price)})
+                </option>
+              ))}
+            </select>
 
-            <div className="md:col-span-2 my-2 border-t border-black/10" />
-
-            <label className="space-y-1 text-sm">
-              <span className="font-medium text-brand-ink">Fecha de la boda *</span>
-              <input
-                required
-                type="date"
-                value={formData.weddingDate}
-                onChange={(event) => onChange('weddingDate', event.target.value)}
-                className="w-full rounded-xl border border-black/15 px-3 py-2 outline-none transition focus:border-brand-clay"
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium text-brand-ink">Ubicación</span>
-              <input
-                value={formData.location}
-                onChange={(event) => onChange('location', event.target.value)}
-                className="w-full rounded-xl border border-black/15 px-3 py-2 outline-none transition focus:border-brand-clay"
-              />
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium text-brand-ink">Idioma</span>
-              <select
-                value={formData.language}
-                onChange={(event) => onChange('language', event.target.value)}
-                className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 outline-none transition focus:border-brand-clay"
-              >
-                <option value="es">Espanol</option>
-                <option value="en">Ingles</option>
-              </select>
-            </label>
-            <label className="space-y-1 text-sm">
-              <span className="font-medium text-brand-ink">Pack</span>
-              <select
-                value={formData.packId}
-                onChange={(event) => onChange('packId', event.target.value)}
-                className="w-full rounded-xl border border-black/15 bg-white px-3 py-2 outline-none transition focus:border-brand-clay"
-              >
-                <option value="">Sin pack</option>
-                {packs.map((pack) => (
-                  <option key={pack.id} value={pack.id}>
-                    {pack.name} ({formatPrice(pack.price)})
+            <select value={formData.stateId} onChange={(event) => onChange('stateId', event.target.value)} className="rounded-xl border border-black/15 px-3 py-2 md:col-span-2">
+              <option value="">Estado por defecto</option>
+              {states
+                .filter((state) => state.isActive)
+                .map((state) => (
+                  <option key={state.id} value={state.id}>
+                    {state.name}
                   </option>
                 ))}
-              </select>
-            </label>
+            </select>
           </div>
 
-          {errorMessage ? (
-            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {errorMessage}
-            </p>
-          ) : null}
+          {errorMessage ? <p className="text-sm text-red-600">{errorMessage}</p> : null}
 
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center justify-between">
             <div>
               {isEditMode ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    void handleDeleteClick();
-                  }}
-                  disabled={isSaving}
-                  className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    className="h-4 w-4"
-                    aria-hidden="true"
-                  >
-                    <path d="M3 6h18" />
-                    <path d="M8 6V4h8v2" />
-                    <path d="M19 6l-1 14H6L5 6" />
-                    <path d="M10 11v6" />
-                    <path d="M14 11v6" />
-                  </svg>
+                <button type="button" onClick={() => void handleDeleteClick()} className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">
                   Eliminar
                 </button>
               ) : null}
             </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-xl border border-black/15 px-4 py-2 text-sm font-medium text-black/70 transition hover:bg-black/5"
-              >
+            <div className="flex gap-2">
+              <button type="button" onClick={onClose} className="rounded-xl border border-black/15 px-4 py-2 text-sm">
                 Cancelar
               </button>
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="rounded-xl bg-brand-pine px-4 py-2 text-sm font-medium text-brand-cloud transition hover:bg-brand-sage disabled:cursor-not-allowed disabled:opacity-70"
-              >
+              <button type="submit" disabled={isSaving} className="rounded-xl bg-brand-pine px-4 py-2 text-sm text-brand-cloud">
                 {isSaving ? 'Guardando...' : 'Guardar'}
               </button>
             </div>
@@ -588,22 +349,16 @@ function WeddingFormModal({
 type BodasViewProps = {
   weddings: Wedding[];
   packs: Pack[];
+  states: WeddingState[];
   isLoading: boolean;
   errorMessage: string | null;
   onCreate: (formData: WeddingFormData) => Promise<void>;
   onUpdate: (id: string, formData: WeddingFormData) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
+  onChangeState: (weddingId: string, stateId: string) => Promise<void>;
 };
 
-function BodasView({
-  weddings,
-  packs,
-  isLoading,
-  errorMessage,
-  onCreate,
-  onUpdate,
-  onDelete,
-}: BodasViewProps) {
+function BodasView({ weddings, packs, states, isLoading, errorMessage, onCreate, onUpdate, onDelete, onChangeState }: BodasViewProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -619,17 +374,8 @@ function BodasView({
     }
 
     return weddings.filter((wedding) => {
-      const searchableContent = [
-        `${wedding.name1} ${wedding.lastName1} ${wedding.name2} ${wedding.lastName2}`,
-        wedding.location ?? '',
-        wedding.state ?? '',
-        wedding.pack?.name ?? '',
-        wedding.weddingDate ?? '',
-      ]
-        .join(' ')
-        .toLowerCase();
-
-      return searchableContent.includes(query);
+      const searchable = `${wedding.name1} ${wedding.lastName1} ${wedding.name2} ${wedding.lastName2} ${wedding.state?.name ?? ''} ${wedding.location ?? ''}`.toLowerCase();
+      return searchable.includes(query);
     });
   }, [weddings, searchTerm]);
 
@@ -656,20 +402,9 @@ function BodasView({
       weddingDate: formatDateForInput(wedding.weddingDate),
       location: wedding.location ?? '',
       packId: wedding.packId ?? wedding.pack?.id ?? '',
-      state: wedding.state ?? '0',
+      stateId: wedding.stateId ?? wedding.state?.id ?? '',
     });
     setIsModalOpen(true);
-  }
-
-  function closeModal() {
-    if (isSaving) {
-      return;
-    }
-
-    setIsModalOpen(false);
-    setEditingWeddingId(null);
-    setFormData(initialWeddingFormData);
-    setFormError(null);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -683,76 +418,31 @@ function BodasView({
       } else {
         await onCreate(formData);
       }
-      closeModal();
+
+      setIsModalOpen(false);
+      setEditingWeddingId(null);
+      setFormData(initialWeddingFormData);
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'No se pudo guardar la boda. Intentalo de nuevo.';
-      setFormError(message);
+      setFormError(error instanceof Error ? error.message : 'No se pudo guardar la boda.');
     } finally {
       setIsSaving(false);
     }
-  }
-
-  async function handleDelete() {
-    if (!editingWeddingId) {
-      return;
-    }
-
-    setIsSaving(true);
-    setFormError(null);
-
-    try {
-      await onDelete(editingWeddingId);
-      closeModal();
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'No se pudo eliminar la boda. Intentalo de nuevo.';
-      setFormError(message);
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  function handleFormChange(field: keyof WeddingFormData, value: string) {
-    setFormData((previousValue) => ({ ...previousValue, [field]: value }));
   }
 
   return (
     <section className="space-y-5">
       <article className="rounded-3xl border border-black/5 bg-white/90 p-6 shadow-panel backdrop-blur-md">
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-xl font-semibold text-brand-ink">
-            Bodas
-          </h3>
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="rounded-xl bg-brand-pine px-4 py-2 text-sm font-medium text-brand-cloud transition hover:bg-brand-sage"
-          >
-            Nueva boda
-          </button>
+          <h3 className="text-xl font-semibold text-brand-ink">Bodas</h3>
+          <button type="button" onClick={openCreateModal} className="rounded-xl bg-brand-pine px-4 py-2 text-sm font-medium text-brand-cloud">Nueva boda</button>
         </div>
 
         <div className="mb-4 flex flex-wrap items-center gap-3">
-          <input
-            type="search"
-            value={searchTerm}
-            onChange={(event) => setSearchTerm(event.target.value)}
-            placeholder="Buscar por boda, estado, pack o ubicacion"
-            className="w-full max-w-md rounded-xl border border-black/15 px-3 py-2 text-sm outline-none transition focus:border-brand-clay"
-          />
+          <input type="search" value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Buscar por boda, estado o ubicacion" className="w-full max-w-md rounded-xl border border-black/15 px-3 py-2 text-sm" />
           <span className="text-xs text-black/50">Total: {weddings.length}</span>
         </div>
 
-        {errorMessage ? (
-          <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {errorMessage}
-          </p>
-        ) : null}
+        {errorMessage ? <p className="mb-4 text-sm text-red-600">{errorMessage}</p> : null}
 
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
@@ -767,40 +457,22 @@ function BodasView({
             </thead>
             <tbody>
               {isLoading ? (
-                <tr>
-                  <td className="px-3 py-6 text-center text-black/60" colSpan={5}>
-                    Cargando bodas...
-                  </td>
-                </tr>
+                <tr><td className="px-3 py-6 text-center text-black/60" colSpan={5}>Cargando bodas...</td></tr>
               ) : filteredWeddings.length === 0 ? (
-                <tr>
-                  <td className="px-3 py-6 text-center text-black/60" colSpan={5}>
-                    No hay resultados para tu busqueda.
-                  </td>
-                </tr>
+                <tr><td className="px-3 py-6 text-center text-black/60" colSpan={5}>No hay resultados.</td></tr>
               ) : (
                 filteredWeddings.map((wedding) => (
-                  <tr
-                    key={wedding.id}
-                    className="border-b border-black/5 text-brand-ink hover:bg-brand-sand/25"
-                  >
-                    <td className="px-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => openEditModal(wedding)}
-                        className="text-left font-medium underline decoration-brand-clay/40 underline-offset-4 transition hover:text-brand-clay"
-                      >
-                        {wedding.name1} {wedding.lastName1} & {wedding.name2}{' '}
-                        {wedding.lastName2}
-                      </button>
-                    </td>
+                  <tr key={wedding.id} className="border-b border-black/5 text-brand-ink hover:bg-brand-sand/25">
+                    <td className="px-3 py-3"><button type="button" onClick={() => openEditModal(wedding)} className="text-left font-medium underline decoration-brand-clay/40 underline-offset-4">{wedding.name1} {wedding.lastName1} y {wedding.name2} {wedding.lastName2}</button></td>
                     <td className="px-3 py-3">{getReadableDate(wedding.weddingDate)}</td>
                     <td className="px-3 py-3">
-                      <span className="rounded-full bg-brand-sage/15 px-2.5 py-1 text-xs font-medium text-brand-sage">
-                        {getStateLabel(wedding.state)}
-                      </span>
+                      <select value={wedding.stateId ?? wedding.state?.id ?? ''} onChange={(event) => void onChangeState(wedding.id, event.target.value)} className="min-w-[220px] rounded-xl border border-black/15 bg-white px-3 py-1.5 text-xs">
+                        {(states.filter((state) => state.isActive || state.id === (wedding.stateId ?? wedding.state?.id ?? ''))).map((state) => (
+                          <option key={state.id} value={state.id}>{state.name}{state.isActive ? '' : ' (inactivo)'}</option>
+                        ))}
+                      </select>
                     </td>
-                    <td className="px-3 py-3">{getPackLabel(wedding)}</td>
+                    <td className="px-3 py-3">{wedding.pack?.name ?? '-'}</td>
                     <td className="px-3 py-3">{wedding.location ?? '-'}</td>
                   </tr>
                 ))
@@ -810,155 +482,8 @@ function BodasView({
         </div>
       </article>
 
-      <WeddingFormModal
-        mode={editingWeddingId ? 'edit' : 'create'}
-        isOpen={isModalOpen}
-        isSaving={isSaving}
-        errorMessage={formError}
-        formData={formData}
-        packs={packs}
-        onClose={closeModal}
-        onChange={handleFormChange}
-        onSubmit={handleSubmit}
-        onDelete={editingWeddingId ? handleDelete : undefined}
-      />
+      <WeddingFormModal mode={editingWeddingId ? 'edit' : 'create'} isOpen={isModalOpen} isSaving={isSaving} errorMessage={formError} formData={formData} packs={packs} states={states} onClose={() => setIsModalOpen(false)} onChange={(field, value) => setFormData((previous) => ({ ...previous, [field]: value }))} onSubmit={handleSubmit} onDelete={editingWeddingId ? async () => { await onDelete(editingWeddingId); setIsModalOpen(false); } : undefined} />
     </section>
-  );
-}
-
-type PackFormModalProps = {
-  mode: 'create' | 'edit';
-  isOpen: boolean;
-  isSaving: boolean;
-  errorMessage: string | null;
-  formData: PackFormData;
-  onClose: () => void;
-  onChange: (field: keyof PackFormData, value: string) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
-  onDelete?: () => Promise<void>;
-};
-
-function PackFormModal({
-  mode,
-  isOpen,
-  isSaving,
-  errorMessage,
-  formData,
-  onClose,
-  onChange,
-  onSubmit,
-  onDelete,
-}: PackFormModalProps) {
-  if (!isOpen) {
-    return null;
-  }
-
-  const isEditMode = mode === 'edit';
-
-  async function handleDeleteClick() {
-    if (!isEditMode || !onDelete || isSaving) {
-      return;
-    }
-
-    const confirmed = window.confirm('Estas seguro de eliminar el pack?');
-    if (!confirmed) {
-      return;
-    }
-
-    await onDelete();
-  }
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-2xl rounded-3xl border border-black/10 bg-white p-6 shadow-panel">
-        <div className="mb-4 flex items-start justify-between gap-4">
-          <p className="text-xs uppercase tracking-[0.2em] text-brand-clay">
-            {isEditMode ? 'Editar pack' : 'Nuevo pack'}
-          </p>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-lg border border-black/15 px-3 py-1 text-sm text-black/70 transition hover:bg-black/5"
-          >
-            Cerrar
-          </button>
-        </div>
-
-        <form onSubmit={onSubmit} className="space-y-4">
-          <label className="block space-y-1 text-sm">
-            <span className="font-medium text-brand-ink">Nombre *</span>
-            <input
-              required
-              value={formData.name}
-              onChange={(event) => onChange('name', event.target.value)}
-              className="w-full rounded-xl border border-black/15 px-3 py-2 outline-none transition focus:border-brand-clay"
-            />
-          </label>
-
-          <label className="block space-y-1 text-sm">
-            <span className="font-medium text-brand-ink">Descripcion</span>
-            <textarea
-              rows={4}
-              value={formData.description}
-              onChange={(event) => onChange('description', event.target.value)}
-              className="w-full rounded-xl border border-black/15 px-3 py-2 outline-none transition focus:border-brand-clay"
-            />
-          </label>
-
-          <label className="block space-y-1 text-sm">
-            <span className="font-medium text-brand-ink">Precio *</span>
-            <input
-              required
-              inputMode="decimal"
-              value={formData.price}
-              onChange={(event) => onChange('price', event.target.value)}
-              placeholder="0.00"
-              className="w-full rounded-xl border border-black/15 px-3 py-2 outline-none transition focus:border-brand-clay"
-            />
-          </label>
-
-          {errorMessage ? (
-            <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-              {errorMessage}
-            </p>
-          ) : null}
-
-          <div className="flex items-center justify-between gap-2">
-            <div>
-              {isEditMode ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    void handleDeleteClick();
-                  }}
-                  disabled={isSaving}
-                  className="inline-flex items-center gap-2 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-70"
-                >
-                  Eliminar
-                </button>
-              ) : null}
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-xl border border-black/15 px-4 py-2 text-sm font-medium text-black/70 transition hover:bg-black/5"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={isSaving}
-                className="rounded-xl bg-brand-pine px-4 py-2 text-sm font-medium text-brand-cloud transition hover:bg-brand-sage disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {isSaving ? 'Guardando...' : 'Guardar'}
-              </button>
-            </div>
-          </div>
-        </form>
-      </div>
-    </div>
   );
 }
 
@@ -971,53 +496,15 @@ type PacksViewProps = {
   onDelete: (id: string) => Promise<void>;
 };
 
-function PacksView({
-  packs,
-  isLoading,
-  errorMessage,
-  onCreate,
-  onUpdate,
-  onDelete,
-}: PacksViewProps) {
-  const [isModalOpen, setIsModalOpen] = useState(false);
+function PacksView({ packs, isLoading, errorMessage, onCreate, onUpdate, onDelete }: PacksViewProps) {
   const [isSaving, setIsSaving] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingPackId, setEditingPackId] = useState<string | null>(null);
   const [formData, setFormData] = useState<PackFormData>(initialPackFormData);
 
-  function openCreateModal() {
-    setEditingPackId(null);
-    setFormError(null);
-    setFormData(initialPackFormData);
-    setIsModalOpen(true);
-  }
-
-  function openEditModal(pack: Pack) {
-    setEditingPackId(pack.id);
-    setFormError(null);
-    setFormData({
-      name: pack.name,
-      description: pack.description,
-      price: String(pack.price),
-    });
-    setIsModalOpen(true);
-  }
-
-  function closeModal() {
-    if (isSaving) {
-      return;
-    }
-
-    setIsModalOpen(false);
-    setEditingPackId(null);
-    setFormData(initialPackFormData);
-    setFormError(null);
-  }
-
-  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSaving(true);
-    setFormError(null);
 
     try {
       if (editingPackId) {
@@ -1025,140 +512,136 @@ function PacksView({
       } else {
         await onCreate(formData);
       }
-      closeModal();
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'No se pudo guardar el pack. Intentalo de nuevo.';
-      setFormError(message);
+
+      setIsModalOpen(false);
+      setEditingPackId(null);
+      setFormData(initialPackFormData);
     } finally {
       setIsSaving(false);
     }
-  }
-
-  async function handleDelete() {
-    if (!editingPackId) {
-      return;
-    }
-
-    setIsSaving(true);
-    setFormError(null);
-
-    try {
-      await onDelete(editingPackId);
-      closeModal();
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'No se pudo eliminar el pack. Intentalo de nuevo.';
-      setFormError(message);
-    } finally {
-      setIsSaving(false);
-    }
-  }
-
-  function handleFormChange(field: keyof PackFormData, value: string) {
-    setFormData((previousValue) => ({ ...previousValue, [field]: value }));
   }
 
   return (
     <section className="space-y-5">
-      <header className="rounded-3xl border border-black/5 bg-white/85 p-6 shadow-panel backdrop-blur-md">
-        <h2 className="mt-2 text-3xl font-semibold text-brand-ink md:text-4xl">Packs</h2>
-        <p className="mt-3 text-sm text-black/65 md:text-base">
-          Configura los packs que puedes ofrecer cada boda.
-        </p>
-      </header>
-
       <article className="rounded-3xl border border-black/5 bg-white/90 p-6 shadow-panel backdrop-blur-md">
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <h3 className="text-xl font-semibold text-brand-ink">Packs   </h3>
-          <button
-            type="button"
-            onClick={openCreateModal}
-            className="rounded-xl bg-brand-pine px-4 py-2 text-sm font-medium text-brand-cloud transition hover:bg-brand-sage"
-          >
-            Nuevo pack
-          </button>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h3 className="text-xl font-semibold text-brand-ink">Packs</h3>
+          <button type="button" onClick={() => { setEditingPackId(null); setFormData(initialPackFormData); setIsModalOpen(true); }} className="rounded-xl bg-brand-pine px-4 py-2 text-sm font-medium text-brand-cloud">Nuevo pack</button>
         </div>
 
-        {errorMessage ? (
-          <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {errorMessage}
-          </p>
-        ) : null}
+        {errorMessage ? <p className="mb-4 text-sm text-red-600">{errorMessage}</p> : null}
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-black/10 text-black/55">
-                <th className="px-3 py-3 font-medium">Nombre</th>
-                <th className="px-3 py-3 font-medium">Descripcion</th>
-                <th className="px-3 py-3 font-medium">Precio</th>
-              </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td className="px-3 py-6 text-center text-black/60" colSpan={3}>
-                    Cargando packs...
-                  </td>
+        <table className="min-w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-black/10 text-black/55">
+              <th className="px-3 py-3 font-medium">Nombre</th>
+              <th className="px-3 py-3 font-medium">Descripcion</th>
+              <th className="px-3 py-3 font-medium">Precio</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr><td className="px-3 py-6 text-center text-black/60" colSpan={3}>Cargando packs...</td></tr>
+            ) : packs.length === 0 ? (
+              <tr><td className="px-3 py-6 text-center text-black/60" colSpan={3}>No hay packs.</td></tr>
+            ) : (
+              packs.map((pack) => (
+                <tr key={pack.id} className="border-b border-black/5 text-brand-ink hover:bg-brand-sand/25">
+                  <td className="px-3 py-3"><button type="button" onClick={() => { setEditingPackId(pack.id); setFormData({ name: pack.name, description: pack.description, price: String(pack.price) }); setIsModalOpen(true); }} className="text-left font-medium underline decoration-brand-clay/40 underline-offset-4">{pack.name}</button></td>
+                  <td className="px-3 py-3">{pack.description || '-'}</td>
+                  <td className="px-3 py-3">{formatPrice(pack.price)}</td>
                 </tr>
-              ) : packs.length === 0 ? (
-                <tr>
-                  <td className="px-3 py-6 text-center text-black/60" colSpan={3}>
-                    Todavia no hay packs creados.
-                  </td>
-                </tr>
-              ) : (
-                packs.map((pack) => (
-                  <tr
-                    key={pack.id}
-                    className="border-b border-black/5 text-brand-ink hover:bg-brand-sand/25"
-                  >
-                    <td className="px-3 py-3">
-                      <button
-                        type="button"
-                        onClick={() => openEditModal(pack)}
-                        className="text-left font-medium underline decoration-brand-clay/40 underline-offset-4 transition hover:text-brand-clay"
-                      >
-                        {pack.name}
-                      </button>
-                    </td>
-                    <td className="px-3 py-3">{pack.description || '-'}</td>
-                    <td className="px-3 py-3">{formatPrice(pack.price)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+              ))
+            )}
+          </tbody>
+        </table>
       </article>
 
-      <PackFormModal
-        mode={editingPackId ? 'edit' : 'create'}
-        isOpen={isModalOpen}
-        isSaving={isSaving}
-        errorMessage={formError}
-        formData={formData}
-        onClose={closeModal}
-        onChange={handleFormChange}
-        onSubmit={handleSubmit}
-        onDelete={editingPackId ? handleDelete : undefined}
-      />
+      {isModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-2xl rounded-3xl border border-black/10 bg-white p-6 shadow-panel">
+            <form onSubmit={submit} className="space-y-4">
+              <input required value={formData.name} onChange={(event) => setFormData((prev) => ({ ...prev, name: event.target.value }))} placeholder="Nombre" className="w-full rounded-xl border border-black/15 px-3 py-2" />
+              <textarea value={formData.description} onChange={(event) => setFormData((prev) => ({ ...prev, description: event.target.value }))} placeholder="Descripcion" className="w-full rounded-xl border border-black/15 px-3 py-2" rows={4} />
+              <input required value={formData.price} onChange={(event) => setFormData((prev) => ({ ...prev, price: event.target.value }))} placeholder="0.00" className="w-full rounded-xl border border-black/15 px-3 py-2" />
+              <div className="flex justify-between">
+                {editingPackId ? <button type="button" onClick={() => void onDelete(editingPackId)} className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-sm text-red-700">Eliminar</button> : <div />}
+                <div className="flex gap-2">
+                  <button type="button" onClick={() => setIsModalOpen(false)} className="rounded-xl border border-black/15 px-4 py-2 text-sm">Cancelar</button>
+                  <button type="submit" disabled={isSaving} className="rounded-xl bg-brand-pine px-4 py-2 text-sm text-brand-cloud">{isSaving ? 'Guardando...' : 'Guardar'}</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
 
-function PlaceholderView({ title }: { title: string }) {
+type WeddingStatesSettingsViewProps = {
+  states: WeddingState[];
+  isLoading: boolean;
+  errorMessage: string | null;
+  onCreate: (name: string) => Promise<void>;
+  onUpdate: (id: string, payload: { name?: string; isActive?: boolean }) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+  onReorder: (stateIds: string[]) => Promise<void>;
+};
+
+function WeddingStatesSettingsView({ states, isLoading, errorMessage, onCreate, onUpdate, onDelete, onReorder }: WeddingStatesSettingsViewProps) {
+  const [newName, setNewName] = useState('');
+  const orderedStates = useMemo(() => [...states].sort((a, b) => a.sortOrder - b.sortOrder), [states]);
+
   return (
-    <section className="rounded-3xl border border-black/5 bg-white/85 p-6 shadow-panel backdrop-blur-md">
-      <h2 className="text-3xl font-semibold text-brand-ink">{title}</h2>
-      <p className="mt-2 text-sm text-black/65">
-        Esta seccion estara disponible en los siguientes pasos del desarrollo.
-      </p>
+    <section className="space-y-5">
+      <article className="rounded-3xl border border-black/5 bg-white/90 p-6 shadow-panel backdrop-blur-md">
+        <h3 className="text-xl font-semibold text-brand-ink">Ajustes - Parametrizacion</h3>
+        <p className="mt-1 text-sm text-black/60">Estados de boda</p>
+
+        <div className="mt-4 flex flex-wrap gap-2">
+          <input value={newName} onChange={(event) => setNewName(event.target.value)} placeholder="Nuevo estado" className="w-full max-w-sm rounded-xl border border-black/15 px-3 py-2 text-sm" />
+          <button type="button" onClick={() => void onCreate(newName.trim()).then(() => setNewName(''))} className="rounded-xl bg-brand-pine px-4 py-2 text-sm text-brand-cloud">Crear estado</button>
+        </div>
+
+        {errorMessage ? <p className="mt-3 text-sm text-red-600">{errorMessage}</p> : null}
+
+        <table className="mt-4 min-w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-black/10 text-black/55">
+              <th className="px-3 py-3 font-medium">Orden</th>
+              <th className="px-3 py-3 font-medium">Nombre</th>
+              <th className="px-3 py-3 font-medium">Codigo</th>
+              <th className="px-3 py-3 font-medium">Estado</th>
+              <th className="px-3 py-3 font-medium">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr><td className="px-3 py-6 text-center text-black/60" colSpan={5}>Cargando estados...</td></tr>
+            ) : orderedStates.length === 0 ? (
+              <tr><td className="px-3 py-6 text-center text-black/60" colSpan={5}>No hay estados.</td></tr>
+            ) : (
+              orderedStates.map((state, index) => (
+                <tr key={state.id} className="border-b border-black/5 text-brand-ink">
+                  <td className="px-3 py-3">
+                    <button type="button" onClick={() => { if (index > 0) { const reordered = [...orderedStates]; const [item] = reordered.splice(index, 1); reordered.splice(index - 1, 0, item); void onReorder(reordered.map((value) => value.id)); } }} className="mr-1 rounded-lg border border-black/15 px-2 py-1 text-xs">?</button>
+                    <button type="button" onClick={() => { if (index < orderedStates.length - 1) { const reordered = [...orderedStates]; const [item] = reordered.splice(index, 1); reordered.splice(index + 1, 0, item); void onReorder(reordered.map((value) => value.id)); } }} className="rounded-lg border border-black/15 px-2 py-1 text-xs">?</button>
+                  </td>
+                  <td className="px-3 py-3">{state.name}</td>
+                  <td className="px-3 py-3 font-mono text-xs">{state.code}</td>
+                  <td className="px-3 py-3">{state.isActive ? 'Activo' : 'Inactivo'}</td>
+                  <td className="px-3 py-3">
+                    <button type="button" onClick={() => { const newName = window.prompt('Nuevo nombre del estado', state.name); if (newName && newName.trim()) { void onUpdate(state.id, { name: newName.trim() }); } }} className="mr-2 rounded-lg border border-black/15 px-2 py-1 text-xs">Renombrar</button>
+                    <button type="button" onClick={() => void onUpdate(state.id, { isActive: !state.isActive })} className="mr-2 rounded-lg border border-black/15 px-2 py-1 text-xs">{state.isActive ? 'Desactivar' : 'Activar'}</button>
+                    <button type="button" onClick={() => { if (window.confirm(`Eliminar estado ${state.name}?`)) { void onDelete(state.id); } }} className="rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-700">Eliminar</button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </article>
     </section>
   );
 }
@@ -1167,226 +650,50 @@ export function CrmDashboardPage() {
   const [activeSection, setActiveSection] = useState<SectionId>('dashboard');
   const [weddings, setWeddings] = useState<Wedding[]>([]);
   const [packs, setPacks] = useState<Pack[]>([]);
+  const [weddingStates, setWeddingStates] = useState<WeddingState[]>([]);
   const [isWeddingsLoading, setIsWeddingsLoading] = useState(true);
   const [isPacksLoading, setIsPacksLoading] = useState(true);
+  const [isWeddingStatesLoading, setIsWeddingStatesLoading] = useState(true);
   const [weddingsError, setWeddingsError] = useState<string | null>(null);
   const [packsError, setPacksError] = useState<string | null>(null);
+  const [weddingStatesError, setWeddingStatesError] = useState<string | null>(null);
 
-  async function loadWeddings() {
-    setIsWeddingsLoading(true);
-    setWeddingsError(null);
+  async function loadWeddings() { try { setIsWeddingsLoading(true); setWeddingsError(null); setWeddings(await fetchApi<Wedding[]>(`${API_BASE_URL}/weddings`)); } catch (error) { setWeddingsError(error instanceof Error ? error.message : 'No se pudieron cargar las bodas.'); } finally { setIsWeddingsLoading(false); } }
+  async function loadPacks() { try { setIsPacksLoading(true); setPacksError(null); setPacks(await fetchApi<Pack[]>(`${API_BASE_URL}/packs`)); } catch (error) { setPacksError(error instanceof Error ? error.message : 'No se pudieron cargar los packs.'); } finally { setIsPacksLoading(false); } }
+  async function loadWeddingStates() { try { setIsWeddingStatesLoading(true); setWeddingStatesError(null); setWeddingStates(await fetchApi<WeddingState[]>(`${API_BASE_URL}/wedding-states?includeInactive=true`)); } catch (error) { setWeddingStatesError(error instanceof Error ? error.message : 'No se pudieron cargar los estados.'); } finally { setIsWeddingStatesLoading(false); } }
 
-    try {
-      const data = await fetchApi<Wedding[]>(`${API_BASE_URL}/weddings`);
-      setWeddings(data);
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : 'No se pudieron cargar las bodas.';
-      setWeddingsError(message);
-    } finally {
-      setIsWeddingsLoading(false);
-    }
-  }
+  useEffect(() => { void Promise.all([loadWeddings(), loadPacks(), loadWeddingStates()]); }, []);
 
-  async function loadPacks() {
-    setIsPacksLoading(true);
-    setPacksError(null);
+  async function handleCreateWedding(formData: WeddingFormData) { await fetchApi<Wedding>(`${API_BASE_URL}/weddings`, { method: 'POST', body: JSON.stringify({ name1: formData.name1.trim(), lastName1: normalizeOptional(formData.lastName1), name2: formData.name2.trim(), lastName2: normalizeOptional(formData.lastName2), email1: normalizeOptional(formData.email1), email2: normalizeOptional(formData.email2), phone1: normalizeOptional(formData.phone1), phone2: normalizeOptional(formData.phone2), language: normalizeOptional(formData.language), weddingDate: formData.weddingDate, location: normalizeOptional(formData.location), stateId: normalizeOptional(formData.stateId), packId: normalizeOptional(formData.packId) }) }); await loadWeddings(); }
+  async function handleUpdateWedding(id: string, formData: WeddingFormData) { await fetchApi<Wedding>(`${API_BASE_URL}/weddings/${id}`, { method: 'PATCH', body: JSON.stringify({ name1: formData.name1.trim(), lastName1: normalizeOptional(formData.lastName1), name2: formData.name2.trim(), lastName2: normalizeOptional(formData.lastName2), email1: normalizeOptional(formData.email1), email2: normalizeOptional(formData.email2), phone1: normalizeOptional(formData.phone1), phone2: normalizeOptional(formData.phone2), language: normalizeOptional(formData.language), weddingDate: formData.weddingDate, location: normalizeOptional(formData.location), stateId: normalizeOptional(formData.stateId), packId: normalizeOptional(formData.packId) }) }); await loadWeddings(); }
+  async function handleDeleteWedding(id: string) { await fetchApi<void>(`${API_BASE_URL}/weddings/${id}`, { method: 'DELETE' }); await loadWeddings(); }
+  async function handleChangeWeddingState(weddingId: string, stateId: string) { const updated = await fetchApi<Wedding>(`${API_BASE_URL}/weddings/${weddingId}/state`, { method: 'PATCH', body: JSON.stringify({ stateId }) }); setWeddings((previous) => previous.map((wedding) => wedding.id === weddingId ? updated : wedding)); }
 
-    try {
-      const data = await fetchApi<Pack[]>(`${API_BASE_URL}/packs`);
-      setPacks(data);
-    } catch (error) {
-      const message =
-        error instanceof Error ? error.message : 'No se pudieron cargar los packs.';
-      setPacksError(message);
-    } finally {
-      setIsPacksLoading(false);
-    }
-  }
+  async function handleCreatePack(formData: PackFormData) { await fetchApi<Pack>(`${API_BASE_URL}/packs`, { method: 'POST', body: JSON.stringify({ name: formData.name.trim(), description: normalizeOptional(formData.description) ?? '', price: parsePrice(formData.price) }) }); await Promise.all([loadPacks(), loadWeddings()]); }
+  async function handleUpdatePack(id: string, formData: PackFormData) { await fetchApi<Pack>(`${API_BASE_URL}/packs/${id}`, { method: 'PATCH', body: JSON.stringify({ name: formData.name.trim(), description: normalizeOptional(formData.description) ?? '', price: parsePrice(formData.price) }) }); await Promise.all([loadPacks(), loadWeddings()]); }
+  async function handleDeletePack(id: string) { await fetchApi<void>(`${API_BASE_URL}/packs/${id}`, { method: 'DELETE' }); await Promise.all([loadPacks(), loadWeddings()]); }
 
-  useEffect(() => {
-    void loadWeddings();
-    void loadPacks();
-  }, []);
-  async function handleCreateWedding(formData: WeddingFormData) {
-    const payload = {
-      name1: formData.name1.trim(),
-      lastName1: normalizeOptional(formData.lastName1),
-      name2: formData.name2.trim(),
-      lastName2: normalizeOptional(formData.lastName2),
-      email1: normalizeOptional(formData.email1),
-      email2: normalizeOptional(formData.email2),
-      phone1: normalizeOptional(formData.phone1),
-      phone2: normalizeOptional(formData.phone2),
-      language: normalizeOptional(formData.language),
-      weddingDate: formData.weddingDate,
-      location: normalizeOptional(formData.location),
-      state: '0',
-      packId: normalizeOptional(formData.packId),
-    };
+  async function handleCreateWeddingState(name: string) { await fetchApi<WeddingState>(`${API_BASE_URL}/wedding-states`, { method: 'POST', body: JSON.stringify({ name }) }); await Promise.all([loadWeddingStates(), loadWeddings()]); }
+  async function handleUpdateWeddingState(id: string, payload: { name?: string; isActive?: boolean }) { await fetchApi<WeddingState>(`${API_BASE_URL}/wedding-states/${id}`, { method: 'PATCH', body: JSON.stringify(payload) }); await Promise.all([loadWeddingStates(), loadWeddings()]); }
+  async function handleDeleteWeddingState(id: string) { await fetchApi<void>(`${API_BASE_URL}/wedding-states/${id}`, { method: 'DELETE' }); await Promise.all([loadWeddingStates(), loadWeddings()]); }
+  async function handleReorderWeddingStates(stateIds: string[]) { setWeddingStates(await fetchApi<WeddingState[]>(`${API_BASE_URL}/wedding-states/reorder`, { method: 'PATCH', body: JSON.stringify({ stateIds }) })); }
 
-    await fetchApi<Wedding>(`${API_BASE_URL}/weddings`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    await loadWeddings();
-  }
-
-  async function handleUpdateWedding(id: string, formData: WeddingFormData) {
-    const payload = {
-      name1: formData.name1.trim(),
-      lastName1: normalizeOptional(formData.lastName1),
-      name2: formData.name2.trim(),
-      lastName2: normalizeOptional(formData.lastName2),
-      email1: normalizeOptional(formData.email1),
-      email2: normalizeOptional(formData.email2),
-      phone1: normalizeOptional(formData.phone1),
-      phone2: normalizeOptional(formData.phone2),
-      language: normalizeOptional(formData.language),
-      weddingDate: formData.weddingDate,
-      location: normalizeOptional(formData.location),
-      state: normalizeOptional(formData.state),
-      packId: normalizeOptional(formData.packId),
-    };
-
-    await fetchApi<Wedding>(`${API_BASE_URL}/weddings/${id}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    await loadWeddings();
-  }
-
-  async function handleDeleteWedding(id: string) {
-    await fetchApi<void>(`${API_BASE_URL}/weddings/${id}`, {
-      method: 'DELETE',
-    });
-
-    await loadWeddings();
-  }
-
-  async function handleCreatePack(formData: PackFormData) {
-    const payload = {
-      name: formData.name.trim(),
-      description: normalizeOptional(formData.description) ?? '',
-      price: parsePrice(formData.price),
-    };
-
-    await fetchApi<Pack>(`${API_BASE_URL}/packs`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    await Promise.all([loadPacks(), loadWeddings()]);
-  }
-
-  async function handleUpdatePack(id: string, formData: PackFormData) {
-    const payload = {
-      name: formData.name.trim(),
-      description: normalizeOptional(formData.description) ?? '',
-      price: parsePrice(formData.price),
-    };
-
-    await fetchApi<Pack>(`${API_BASE_URL}/packs/${id}`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(payload),
-    });
-
-    await Promise.all([loadPacks(), loadWeddings()]);
-  }
-
-  async function handleDeletePack(id: string) {
-    await fetchApi<void>(`${API_BASE_URL}/packs/${id}`, {
-      method: 'DELETE',
-    });
-
-    await Promise.all([loadPacks(), loadWeddings()]);
-  }
   return (
     <main className="dashboard-fade-in h-screen overflow-hidden p-4 md:p-8">
       <div className="mx-auto grid h-full max-w-7xl gap-5 md:grid-cols-[260px_1fr]">
         <aside className="h-full overflow-hidden rounded-3xl border border-black/5 bg-brand-pine p-6 text-brand-cloud shadow-panel">
-          <div className="mb-8">
-            <h1 className="mt-2 text-2xl font-semibold">Lenwed</h1>
-          </div>
-
-          <nav className="space-y-2">
-            {sidebarItems.map((item) => {
-              const isActive = item.id === activeSection;
-
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => setActiveSection(item.id)}
-                  className={`block w-full rounded-xl px-3 py-2 text-left text-sm transition ${
-                    isActive
-                      ? 'bg-brand-cloud text-brand-pine'
-                      : 'text-brand-cloud/80 hover:bg-white/10 hover:text-brand-cloud'
-                  }`}
-                >
-                  {item.label}
-                </button>
-              );
-            })}
-          </nav>
-
-          <div className="mt-10 rounded-2xl border border-white/20 bg-white/10 p-4 text-sm">
-            <p className="font-medium">Tu semana</p>
-            <p className="mt-1 text-brand-sand/80">
-              3 reuniones, 2 entregas y 1 boda por confirmar.
-            </p>
-          </div>
+          <h1 className="mb-8 text-2xl font-semibold">Lenwed</h1>
+          <nav className="space-y-2">{sidebarItems.map((item) => (<button key={item.id} type="button" onClick={() => setActiveSection(item.id)} className={`block w-full rounded-xl px-3 py-2 text-left text-sm transition ${item.id === activeSection ? 'bg-brand-cloud text-brand-pine' : 'text-brand-cloud/80 hover:bg-white/10 hover:text-brand-cloud'}`}>{item.label}</button>))}</nav>
         </aside>
 
         <div className="lenwed-scroll-area h-full overflow-y-auto">
           {activeSection === 'dashboard' ? <DashboardView /> : null}
-          {activeSection === 'bodas' ? (
-            <BodasView
-              weddings={weddings}
-              packs={packs}
-              isLoading={isWeddingsLoading}
-              errorMessage={weddingsError}
-              onCreate={handleCreateWedding}
-              onUpdate={handleUpdateWedding}
-              onDelete={handleDeleteWedding}
-            />
-          ) : null}
-          {activeSection === 'packs' ? (
-            <PacksView
-              packs={packs}
-              isLoading={isPacksLoading}
-              errorMessage={packsError}
-              onCreate={handleCreatePack}
-              onUpdate={handleUpdatePack}
-              onDelete={handleDeletePack}
-            />
-          ) : null}
-          {activeSection === 'presupuestos' ? (
-            <PlaceholderView title="Presupuestos" />
-          ) : null}
-          {activeSection === 'actividades' ? (
-            <PlaceholderView title="Actividades" />
-          ) : null}
-          {activeSection === 'automatizaciones' ? (
-            <PlaceholderView title="Automatizaciones" />
-          ) : null}
-          {activeSection === 'ajustes' ? <PlaceholderView title="Ajustes" /> : null}
+          {activeSection === 'bodas' ? <BodasView weddings={weddings} packs={packs} states={weddingStates} isLoading={isWeddingsLoading} errorMessage={weddingsError} onCreate={handleCreateWedding} onUpdate={handleUpdateWedding} onDelete={handleDeleteWedding} onChangeState={handleChangeWeddingState} /> : null}
+          {activeSection === 'packs' ? <PacksView packs={packs} isLoading={isPacksLoading} errorMessage={packsError} onCreate={handleCreatePack} onUpdate={handleUpdatePack} onDelete={handleDeletePack} /> : null}
+          {activeSection === 'presupuestos' ? <PlaceholderView title="Presupuestos" /> : null}
+          {activeSection === 'actividades' ? <PlaceholderView title="Actividades" /> : null}
+          {activeSection === 'automatizaciones' ? <PlaceholderView title="Automatizaciones" /> : null}
+          {activeSection === 'ajustes' ? <WeddingStatesSettingsView states={weddingStates} isLoading={isWeddingStatesLoading} errorMessage={weddingStatesError} onCreate={handleCreateWeddingState} onUpdate={handleUpdateWeddingState} onDelete={handleDeleteWeddingState} onReorder={handleReorderWeddingStates} /> : null}
         </div>
       </div>
     </main>
